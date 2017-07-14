@@ -12,8 +12,8 @@ use kernel::{ReturnCode};
 use kernel::common::take_cell::{MapCell, TakeCell};
 use kernel::hil;
 // Capsules
-use port_signpost_tock;
-use port_signpost_tock::PortSignpostTockClient;
+use signbus::port_signpost_tock;
+use signbus::port_signpost_tock::PortSignpostTockClient;
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];

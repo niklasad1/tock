@@ -369,22 +369,22 @@ pub unsafe fn reset_handler() {
 
 	// Port Signpost Tock	
     let port_signpost_tock = static_init!(
-		capsules::port_signpost_tock::PortSignpostTock<'static>,
-		capsules::port_signpost_tock::PortSignpostTock::new(&sam4l::i2c::I2C0,
-			&mut capsules::port_signpost_tock::BUFFER0,
-			&mut capsules::port_signpost_tock::BUFFER1,
-			&mut capsules::port_signpost_tock::BUFFER2,
-			&mut capsules::port_signpost_tock::BUFFER3
+		capsules::signbus::port_signpost_tock::PortSignpostTock<'static>,
+		capsules::signbus::port_signpost_tock::PortSignpostTock::new(&sam4l::i2c::I2C0,
+			&mut capsules::signbus::port_signpost_tock::BUFFER0,
+			&mut capsules::signbus::port_signpost_tock::BUFFER1,
+			&mut capsules::signbus::port_signpost_tock::BUFFER2,
+			&mut capsules::signbus::port_signpost_tock::BUFFER3
 		));
 	sam4l::i2c::I2C0.set_master_client(port_signpost_tock); 
 	sam4l::i2c::I2C0.set_slave_client(port_signpost_tock); 
 
 	// Signbus IO Interface
 	let signbus_io_interface = static_init!(
-		capsules::signbus_io_interface::SignbusIOInterface<'static>,
-		capsules::signbus_io_interface::SignbusIOInterface::new(port_signpost_tock,
-			&mut capsules::signbus_io_interface::BUFFER0,
-			&mut capsules::signbus_io_interface::BUFFER1
+		capsules::signbus::signbus_io_interface::SignbusIOInterface<'static>,
+		capsules::signbus::signbus_io_interface::SignbusIOInterface::new(port_signpost_tock,
+			&mut capsules::signbus::signbus_io_interface::BUFFER0,
+			&mut capsules::signbus::signbus_io_interface::BUFFER1
 		));
 
 	port_signpost_tock.set_client(signbus_io_interface);	
@@ -392,17 +392,17 @@ pub unsafe fn reset_handler() {
 
 	// Signbus Protocol Layer
 	let signbus_protocol_layer = static_init!(
-		capsules::signbus_protocol_layer::SignbusProtocolLayer<'static>,
-		capsules::signbus_protocol_layer::SignbusProtocolLayer::new(signbus_io_interface,
-			&mut capsules::signbus_protocol_layer::BUFFER0,
-			&mut capsules::signbus_protocol_layer::BUFFER1
+		capsules::signbus::signbus_protocol_layer::SignbusProtocolLayer<'static>,
+		capsules::signbus::signbus_protocol_layer::SignbusProtocolLayer::new(signbus_io_interface,
+			&mut capsules::signbus::signbus_protocol_layer::BUFFER0,
+			&mut capsules::signbus::signbus_protocol_layer::BUFFER1
 		));
 	
 	// Signbus App Layer
 	let signbus_app_layer = static_init!(
-		capsules::signbus_app_layer::SignbusAppLayer<'static>,
-		capsules::signbus_app_layer::SignbusAppLayer::new(signbus_protocol_layer,
-			&mut capsules::signbus_app_layer::BUFFER0
+		capsules::signbus::signbus_app_layer::SignbusAppLayer<'static>,
+		capsules::signbus::signbus_app_layer::SignbusAppLayer::new(signbus_protocol_layer,
+			&mut capsules::signbus::signbus_app_layer::BUFFER0
 		));
 
 /* 
@@ -475,11 +475,11 @@ pub unsafe fn reset_handler() {
 	//signbus_protocol_layer.signbus_protocol_send(0x28, &mut capsules::signbus_protocol_layer::BUFFER2, 256);
 
 	signbus_app_layer.signbus_app_send(0x28, 
-					capsules::signbus_app_layer::SignbusFrameType::NotificationFrame,
-					capsules::signbus_app_layer::SignbusApiType::InitializationApiType,
+					capsules::signbus::signbus_app_layer::SignbusFrameType::NotificationFrame,
+					capsules::signbus::signbus_app_layer::SignbusApiType::InitializationApiType,
 					2,
 					10,	
-					&mut capsules::signbus_app_layer::BUFFER0[0..10]);
+					&mut capsules::signbus::signbus_app_layer::BUFFER0[0..10]);
 
     // debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);

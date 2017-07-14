@@ -14,7 +14,7 @@ use kernel::hil;
 use kernel::hil::gpio;
 use kernel::hil::time;
 // Capsules
-use signbus_protocol_layer;
+use signbus::signbus_protocol_layer;
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];

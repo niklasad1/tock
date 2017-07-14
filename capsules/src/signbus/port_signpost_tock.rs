@@ -11,8 +11,7 @@ use kernel::common::take_cell::{TakeCell};
 use kernel::hil;
 use kernel::hil::i2c;
 
-// Capsules
-use signbus_io_interface;
+use signbus::signbus_io_interface;
 
 // Buffers to use for I2C messages
 pub static mut BUFFER0: [u8; 256] = [0; 256];

@@ -10,8 +10,8 @@ use kernel::{AppId, AppSlice, Callback, Driver, ReturnCode, Shared};
 use kernel::common::take_cell::{MapCell, TakeCell};
 use kernel::hil;
 // Capsules
-use port_signpost_tock;
-use signbus_io_interface;
+use signbus::port_signpost_tock;
+use signbus::signbus_io_interface;
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
