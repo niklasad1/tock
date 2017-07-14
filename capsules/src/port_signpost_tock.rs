@@ -11,6 +11,9 @@ use kernel::common::take_cell::{TakeCell};
 use kernel::hil;
 use kernel::hil::i2c;
 
+// Capsules
+use signbus_io_interface;
+
 // Buffers to use for I2C messages
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
@@ -34,6 +37,10 @@ enum State {
 	SlaveRead,
 }
 
+pub trait PortSignpostTockClient {
+	fn command_complete(&self, buffer: &'static mut [u8], error: hil::i2c::Error);
+}
+
 pub struct PortSignpostTock<'a> {
 	i2c: 		&'a hil::i2c::I2CMasterSlave,
 	
@@ -42,7 +49,10 @@ pub struct PortSignpostTock<'a> {
 	pub slave_tx_buffer:		TakeCell <'static, [u8]>,
 	pub slave_rx_buffer:		TakeCell <'static, [u8]>,
 
-	state:		Cell<State>,
+    client: 		Cell<Option<&'static signbus_io_interface::SignbusIOInterface<'static>>>,
+
+	state:			Cell<State>,
+    listening: 		Cell<bool>,
 }
 
 impl<'a> PortSignpostTock<'a> {
@@ -57,9 +67,16 @@ impl<'a> PortSignpostTock<'a> {
 			master_rx_buffer:		TakeCell::new(master_rx_buffer),
 			slave_tx_buffer:		TakeCell::new(slave_tx_buffer),
 			slave_rx_buffer:		TakeCell::new(slave_rx_buffer),
-			state:		Cell::new(State::Idle),
+            client: 				Cell::new(None),
+			state:					Cell::new(State::Idle),
+     		listening: 				Cell::new(true),
 		}
 	}
+
+
+    pub fn set_client(&self, client: &'static signbus_io_interface::SignbusIOInterface<'a>) {
+        self.client.set(Some(client));
+    }
 	
 	fn set_slave_address(&self, i2c_address: u8) -> ReturnCode {
 
@@ -81,9 +98,10 @@ impl<'a> PortSignpostTock<'a> {
 		return r;
 	}
 
+    // Do a write to another I2C device
 	pub fn i2c_master_write(&self, address: u8, len: u16) -> ReturnCode {
 
-		debug!("Signbus_Port");
+		debug!("Signbus_Port_master_write");
 		
 		self.master_tx_buffer.take().map(|buffer|{
 			hil::i2c::I2CMaster::enable(self.i2c);
@@ -92,9 +110,12 @@ impl<'a> PortSignpostTock<'a> {
 		
 		// TODO: yield() or implement client callback
 
+		self.state.set(State::MasterWrite);
 		return ReturnCode::SUCCESS;
 	}
 
+    
+	// Listen for messages to this device as a slave.
 	pub fn i2c_slave_listen(&self) -> ReturnCode {
 
 		self.slave_rx_buffer.take().map(|buffer| {
@@ -123,9 +144,57 @@ impl<'a> PortSignpostTock<'a> {
 
 impl<'a> i2c::I2CHwMasterClient for PortSignpostTock <'a> {
 	fn command_complete(&self, buffer: &'static mut [u8], error: hil::i2c::Error) {
-		//TODO: implement callback
-	}
+    	debug!("I2CHwMasterClient for PortSignpostTock");
 
+		//TODO: implement callback
+/*
+        // Map I2C error to a number we can pass back to the application
+        let err: isize = match error {
+            hil::i2c::Error::AddressNak => -1,
+            hil::i2c::Error::DataNak => -2,
+            hil::i2c::Error::ArbitrationLost => -3,
+            hil::i2c::Error::CommandComplete => 0,
+        };
+
+        // Signal the application layer. Need to copy read in bytes if this
+        // was a read call.
+        match self.master_action.get() {
+            MasterAction::Write => {
+                self.master_buffer.replace(buffer);
+
+                self.app.map(|app| {
+                    app.callback.map(|mut cb| { cb.schedule(0, err as usize, 0); });
+                });
+            }
+
+            MasterAction::Read(read_len) => {
+                self.app.map(|app| {
+                    app.master_rx_buffer.as_mut().map(move |app_buffer| {
+                        let len = cmp::min(app_buffer.len(), read_len as usize);
+
+                        let d = &mut app_buffer.as_mut()[0..(len as usize)];
+                        for (i, c) in buffer[0..len].iter().enumerate() {
+                            d[i] = *c;
+                        }
+
+                        self.master_buffer.replace(buffer);
+                    });
+
+                    app.callback.map(|mut cb| { cb.schedule(1, err as usize, 0); });
+                });
+            }
+        }
+
+        // Check to see if we were listening as an I2C slave and should re-enable
+        // that mode.
+        if self.listening.get() {
+            hil::i2c::I2CSlave::enable(self.i2c);
+            hil::i2c::I2CSlave::listen(self.i2c);
+        }
+    }
+
+*/
+	}
 }
 
 
@@ -135,6 +204,7 @@ impl<'a> i2c::I2CHwSlaveClient for PortSignpostTock <'a> {
 						length: u8,
 						transmission_type: hil::i2c::SlaveTransmissionType) {
 		//TODO: implement callback
+    	debug!("I2CHwSlaveClient for PortSignpostTock");
 	}
 
 	fn read_expected(&self) {

@@ -63,6 +63,7 @@ pub enum SignbusApiType {
 pub struct SignbusAppLayer<'a> {
 	signbus_protocol_layer: 	&'a signbus_protocol_layer::SignbusProtocolLayer<'a>,
 	payload:					TakeCell <'static, [u8]>,
+    app: 						MapCell<App>,
 }
 
 impl<'a> SignbusAppLayer<'a,> {
@@ -72,6 +73,7 @@ impl<'a> SignbusAppLayer<'a,> {
 		SignbusAppLayer {
 			signbus_protocol_layer:  	signbus_protocol_layer,
 			payload:					TakeCell::new(payload),
+            app: 						MapCell::new(App::default()),
 		}
 	}
 
@@ -83,7 +85,7 @@ impl<'a> SignbusAppLayer<'a,> {
 							message_length: u16,
 							message: &'static mut [u8]) -> ReturnCode {
 		
-		debug!("Signbus_App");
+		debug!("Signbus_App_send");
 		
 		let mut rc = ReturnCode::SUCCESS;
 		let len: u16 = 1 + 1 + 1 + message_length;
@@ -101,6 +103,7 @@ impl<'a> SignbusAppLayer<'a,> {
 			}	
 		});
 
+		// Send to signbus_protocol_layer
 		self.payload.take().map(|payload|{
 			rc = self.signbus_protocol_layer.signbus_protocol_send(address, payload, len);
 		});

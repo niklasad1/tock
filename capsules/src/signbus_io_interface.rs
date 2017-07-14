@@ -13,6 +13,7 @@ use kernel::common::take_cell::{MapCell, TakeCell};
 use kernel::hil;
 // Capsules
 use port_signpost_tock;
+use port_signpost_tock::PortSignpostTockClient;
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
@@ -21,6 +22,9 @@ pub static mut BUFFER2: [u8; 256] = [1; 256];
 static debug: u8 = 1;
 const I2C_MAX_LEN: u16 = 255; 
 
+////////////////////
+// NETWORK PACKET //
+////////////////////
 #[repr(C, packed)]
 pub struct SignbusNetworkFlags {
 	is_fragment:	bool,
@@ -45,7 +49,26 @@ pub struct Packet {
 	header: SignbusNetworkHeader,
 	data:	&'static mut [u8],	
 }
+////////////////////
+// ************** //
+////////////////////
 
+
+
+////////////////////
+//   NEW PACKET   //
+////////////////////
+pub struct NewPacket {
+	new: bool,
+	len: u16,
+}
+////////////////////
+// ************** //
+////////////////////
+
+
+// Function needed to turn struct into [u8]
+// Should be okay if structs are packed
 unsafe fn as_byte_slice<'a, T>(input: &'a T) -> &'a [u8] {
     slice::from_raw_parts(input as *const T as *const u8, mem::size_of::<T>())
 }
@@ -54,6 +77,7 @@ pub struct SignbusIOInterface<'a> {
 	port_signpost_tock: 	&'a port_signpost_tock::PortSignpostTock<'a>,
 	this_device_address:	Cell<u8>,
 	sequence_number:		Cell<u16>,
+	newpkt:					Cell<NewPacket>,
 	slave_write_buf:		TakeCell <'static, [u8]>,
 	packet_buf:				TakeCell <'static, [u8]>,
 }
@@ -67,6 +91,7 @@ impl<'a> SignbusIOInterface<'a> {
 			port_signpost_tock:  	port_signpost_tock,
 			this_device_address:	Cell::new(0),
 			sequence_number:		Cell::new(0),
+			newpkt:					Cell::new(NewPacket {new: false,len: 0,}),
 			slave_write_buf:		TakeCell::new(slave_write_buf),
 			packet_buf:				TakeCell::new(packet_buf),
 		}
@@ -76,6 +101,14 @@ impl<'a> SignbusIOInterface<'a> {
 	// Host-to-network short (packages certain data into header)
 	fn htons(&self, a: u16) -> u16 {
 		return ((a as u16 & 0x00FF) << 8) | ((a as u16 & 0xFF00) >> 8);
+	}
+
+	fn get_message(&self, 
+					recv_buf: &'static mut [u8],
+					encrypted: bool,
+					src_address: u8) {
+		
+		let mut done: u8 = 0;
 	}
 
 	/// Initialization routine to set up the slave address for this device.
@@ -102,7 +135,7 @@ impl<'a> SignbusIOInterface<'a> {
 							data: &'static mut [u8],
 							len: u16) -> ReturnCode {
 
-		debug!("Signbus_Interface");
+		debug!("Signbus_Interface_send");
 		
 		// update sequence number
 		self.sequence_number.set(self.sequence_number.get() + 1);
@@ -134,7 +167,7 @@ impl<'a> SignbusIOInterface<'a> {
 			src:				self.this_device_address.get(),
 			sequence_number:	self.htons(self.sequence_number.get()),
 			length:				self.htons(num_packets * header_size + len),
-			fragment_offset:	0 as u16,
+			fragment_offset:	self.htons(0),
 		};
 
 		// Packet
@@ -154,7 +187,7 @@ impl<'a> SignbusIOInterface<'a> {
 		}
 		
 		
-		while to_send > 0 {
+		//while to_send > 0 {
 			let more_packets: bool = to_send > max_data_len;;
 			let mut START: usize = (header_size + 1) as usize; 
 
@@ -200,7 +233,7 @@ impl<'a> SignbusIOInterface<'a> {
 				if rc != ReturnCode::SUCCESS { return rc; } 
 				to_send = 0;
 			}
-		}
+		//}
 
 		if debug == 1 {
 			//debug!("End of Function");
@@ -208,4 +241,20 @@ impl<'a> SignbusIOInterface<'a> {
 
 		ReturnCode::SUCCESS
 	}
+
+	pub fn signbus_io_recv(&self) -> ReturnCode {
+		let rc = self.port_signpost_tock.i2c_slave_listen();
+		if rc != ReturnCode::SUCCESS {return rc;}	
+		
+		// get_message() helper
+		ReturnCode::SUCCESS
+	}  
+}
+
+
+impl<'a> PortSignpostTockClient for SignbusIOInterface <'a> {
+	fn command_complete(&self, buffer: &'static mut [u8], error: hil::i2c::Error) {
+		debug!("PortSignpostTockClient in SignbusIOInterface");
+
+	}	
 }

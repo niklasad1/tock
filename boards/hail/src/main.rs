@@ -387,6 +387,9 @@ pub unsafe fn reset_handler() {
 			&mut capsules::signbus_io_interface::BUFFER1
 		));
 
+	port_signpost_tock.set_client(signbus_io_interface);	
+
+
 	// Signbus Protocol Layer
 	let signbus_protocol_layer = static_init!(
 		capsules::signbus_protocol_layer::SignbusProtocolLayer<'static>,
@@ -476,7 +479,7 @@ pub unsafe fn reset_handler() {
 					capsules::signbus_app_layer::SignbusApiType::InitializationApiType,
 					2,
 					10,	
-					&mut capsules::signbus_protocol_layer::BUFFER2[0..10]);
+					&mut capsules::signbus_app_layer::BUFFER0[0..10]);
 
     // debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);

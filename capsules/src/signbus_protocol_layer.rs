@@ -40,8 +40,11 @@ impl<'a> SignbusProtocolLayer<'a,> {
 								data: &'static mut [u8],
 								len: u16) -> ReturnCode {
 		
-		debug!("Signbus_Protocol");
+		debug!("Signbus_Protocol_send");
+		// TODO: encryption not availabe in Rust
 		let encrypted: bool = false;
+	
+		// Send to io_interface
 		self.signbus_io_interface.signbus_io_send(address, encrypted, data, len)
 	}
 	
