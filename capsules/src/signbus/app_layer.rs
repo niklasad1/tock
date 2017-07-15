@@ -14,7 +14,7 @@ use kernel::hil;
 use kernel::hil::gpio;
 use kernel::hil::time;
 // Capsules
-use signbus::signbus_protocol_layer;
+use signbus::protocol_layer;
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
@@ -61,17 +61,17 @@ pub enum SignbusApiType {
 }
 
 pub struct SignbusAppLayer<'a> {
-	signbus_protocol_layer: 	&'a signbus_protocol_layer::SignbusProtocolLayer<'a>,
+	protocol_layer: 	&'a protocol_layer::SignbusProtocolLayer<'a>,
 	payload:					TakeCell <'static, [u8]>,
     app: 						MapCell<App>,
 }
 
 impl<'a> SignbusAppLayer<'a,> {
-	pub fn new(signbus_protocol_layer: &'a signbus_protocol_layer::SignbusProtocolLayer<'a>,
+	pub fn new(protocol_layer: &'a protocol_layer::SignbusProtocolLayer<'a>,
 				payload: &'static mut [u8]) -> SignbusAppLayer <'a> {
 		
 		SignbusAppLayer {
-			signbus_protocol_layer:  	signbus_protocol_layer,
+			protocol_layer:  	protocol_layer,
 			payload:					TakeCell::new(payload),
             app: 						MapCell::new(App::default()),
 		}
@@ -103,9 +103,9 @@ impl<'a> SignbusAppLayer<'a,> {
 			}	
 		});
 
-		// Send to signbus_protocol_layer
+		// Send to protocol_layer
 		self.payload.take().map(|payload|{
-			rc = self.signbus_protocol_layer.signbus_protocol_send(address, payload, len);
+			rc = self.protocol_layer.signbus_protocol_send(address, payload, len);
 		});
 
 		return rc;
