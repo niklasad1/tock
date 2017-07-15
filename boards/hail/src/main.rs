@@ -363,61 +363,71 @@ pub unsafe fn reset_handler() {
         capsules::crc::Crc<'static, sam4l::crccu::Crccu<'static>>,
         capsules::crc::Crc::new(&mut sam4l::crccu::CRCCU, kernel::Container::create()));
     sam4l::crccu::CRCCU.set_client(crc);
-    
-	// DAC
+
+    // DAC
     let dac = static_init!(
         capsules::dac::Dac<'static>,
         capsules::dac::Dac::new(&mut sam4l::dac::DAC));
 
-	// Port Signpost Tock	
-    let port_signpost_tock = static_init!(
-		capsules::signbus::port_signpost_tock::PortSignpostTock<'static>,
-		capsules::signbus::port_signpost_tock::PortSignpostTock::new(&sam4l::i2c::I2C1,
-			&mut capsules::signbus::port_signpost_tock::BUFFER0,
-			&mut capsules::signbus::port_signpost_tock::BUFFER1,
-			&mut capsules::signbus::port_signpost_tock::BUFFER2,
-			&mut capsules::signbus::port_signpost_tock::BUFFER3
-		));
-	sam4l::i2c::I2C1.set_master_client(port_signpost_tock); 
-	sam4l::i2c::I2C1.set_slave_client(port_signpost_tock); 
-
-	// Signbus IO Interface
-	let signbus_io_interface = static_init!(
-		capsules::signbus::signbus_io_interface::SignbusIOInterface<'static>,
-		capsules::signbus::signbus_io_interface::SignbusIOInterface::new(port_signpost_tock,
-			&mut capsules::signbus::signbus_io_interface::BUFFER0,
-			&mut capsules::signbus::signbus_io_interface::BUFFER1
-		));
-
-	port_signpost_tock.set_client(signbus_io_interface);	
-
-
-	// Signbus Protocol Layer
-	let signbus_protocol_layer = static_init!(
-		capsules::signbus::signbus_protocol_layer::SignbusProtocolLayer<'static>,
-		capsules::signbus::signbus_protocol_layer::SignbusProtocolLayer::new(signbus_io_interface,
-			&mut capsules::signbus::signbus_protocol_layer::BUFFER0,
-			&mut capsules::signbus::signbus_protocol_layer::BUFFER1
-		));
-	
-	// Signbus App Layer
-	let signbus_app_layer = static_init!(
-		capsules::signbus::signbus_app_layer::SignbusAppLayer<'static>,
-		capsules::signbus::signbus_app_layer::SignbusAppLayer::new(signbus_protocol_layer,
-			&mut capsules::signbus::signbus_app_layer::BUFFER0
-		));
-/* 
-	let port_signpost_tock_virtual_alarm = static_init!(
+    // Signbus port layer
+    let signbus_virtual_alarm = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
         VirtualMuxAlarm::new(mux_alarm));
-	let port_signpost_tock = static_init!(
-        capsules::port_signpost_tock::PortSignpostTock<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
-        capsules::port_signpost_tock::PortSignpostTock::new(port_signpost_tock_i2c,
-            port_signpost_tock_virtual_alarm,
-            &mut capsules::port_signpost_tock::BUFFER));
-    port_signpost_tock_i2c.set_client(port_signpost_tock);
-   	port_signpost_tock_virtual_alarm.set_client(port_signpost_tock);
-*/
+    let port_layer = static_init!(
+        capsules::signbus::port_layer::SignbusPortLayer<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
+        capsules::signbus::port_layer::SignbusPortLayer::new(
+                &sam4l::i2c::I2C0,
+                &mut capsules::signbus::port_layer::I2C_BUFFER,
+    //XXX: each of these resources was chosen randomly!
+                &sam4l::gpio::PA[16],
+                &sam4l::gpio::PA[17],
+                signbus_virtual_alarm,
+                Some(&sam4l::gpio::PA[18]),
+            ));
+    sam4l::i2c::I2C0.set_master_client(port_layer);
+    sam4l::i2c::I2C0.set_slave_client(port_layer);
+    //XXX: other clients need to be set here too!
+
+    /*
+    // Signbus IO Interface
+    let signbus_io_layer = static_init!(
+        capsules::signbus::io_layer::SignbusIOInterface<'static>,
+        capsules::signbus::io_layer::SignbusIOInterface::new(port_layer,
+                                                             &mut capsules::signbus::io_layer::BUFFER0,
+                                                             &mut capsules::signbus::io_layer::BUFFER1
+                                                            ));
+
+    port_layer.set_client(signbus_io_layer);
+
+
+    // Signbus Protocol Layer
+    let signbus_protocol_layer = static_init!(
+        capsules::signbus::protocol_layer::SignbusProtocolLayer<'static>,
+        capsules::signbus::protocol_layer::SignbusProtocolLayer::new(signbus_io_layer,
+                                                                     &mut capsules::signbus::protocol_layer::BUFFER0,
+                                                                     &mut capsules::signbus::protocol_layer::BUFFER1
+                                                                    ));
+
+    // Signbus App Layer
+    let signbus_app_layer = static_init!(
+        capsules::signbus::app_layer::SignbusAppLayer<'static>,
+        capsules::signbus::app_layer::SignbusAppLayer::new(signbus_protocol_layer,
+                                                           &mut capsules::signbus::app_layer::BUFFER0
+                                                          ));
+    */
+
+    /*
+       let port_layer_virtual_alarm = static_init!(
+       VirtualMuxAlarm<'static, sam4l::ast::Ast>,
+       VirtualMuxAlarm::new(mux_alarm));
+       let port_layer = static_init!(
+       capsules::port_layer::PortSignpostTock<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
+       capsules::port_layer::PortSignpostTock::new(port_layer_i2c,
+       port_layer_virtual_alarm,
+       &mut capsules::port_layer::BUFFER));
+       port_layer_i2c.set_client(port_layer);
+       port_layer_virtual_alarm.set_client(port_layer);
+       */
 
     // AES
     let aes = static_init!(
@@ -429,19 +439,6 @@ pub unsafe fn reset_handler() {
                                                     &mut capsules::symmetric_encryption::IV));
     hil::symmetric_encryption::SymmetricEncryption::set_client(&sam4l::aes::AES, aes);
     
-/*
-	//
-    // I2C Buses
-    //
-    let i2c_modules = static_init!(
-        capsules::i2c_master_slave_driver::I2CMasterSlaveDriver<'static>,
-        capsules::i2c_master_slave_driver::I2CMasterSlaveDriver::new(&sam4l::i2c::I2C1,
-            &mut capsules::i2c_master_slave_driver::BUFFER1,
-            &mut capsules::i2c_master_slave_driver::BUFFER2,
-            &mut capsules::i2c_master_slave_driver::BUFFER3));
-    sam4l::i2c::I2C1.set_master_client(i2c_modules);
-    sam4l::i2c::I2C1.set_slave_client(i2c_modules);
-*/
     let hail = Hail {
         console: console,
         gpio: gpio,
@@ -485,20 +482,7 @@ pub unsafe fn reset_handler() {
 	
 	signbus_io_interface.signbus_io_init(0x20);
 	signbus_io_interface.signbus_io_recv();
-	//signbus_io_interface.signbus_io_send(0x28, false, &mut capsules::signbus::signbus_io_interface::BUFFER2, 256);
-
-	//signbus_protocol_layer.signbus_protocol_send(0x28, &mut capsules::signbus_protocol_layer::BUFFER2, 256);
-
-	/*
-	signbus_app_layer.signbus_app_send(0x28, 
-					capsules::signbus::signbus_app_layer::SignbusFrameType::NotificationFrame,
-					capsules::signbus::signbus_app_layer::SignbusApiType::InitializationApiType,
-					2,
-					10,	
-					&mut capsules::signbus::signbus_app_layer::BUFFER0[0..10]);
-	*/
-
-	//port_signpost_tock.i2c_slave_listen();
-    //debug!("Initialization complete. Entering main loop");
+    
+	//debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);
 }
