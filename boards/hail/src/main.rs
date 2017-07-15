@@ -373,33 +373,35 @@ pub unsafe fn reset_handler() {
     let signbus_virtual_alarm = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
         VirtualMuxAlarm::new(mux_alarm));
-    let port_layer = static_init!(
-        capsules::signbus::port_layer::SignbusPortLayer<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
-        capsules::signbus::port_layer::SignbusPortLayer::new(
-                &sam4l::i2c::I2C0,
-                &mut capsules::signbus::port_layer::I2C_BUFFER,
+    
+	let port_layer = static_init!(
+        capsules::signbus::port_layer::SignbusPortLayer<'static, 
+			VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
+		capsules::signbus::port_layer::SignbusPortLayer::new(
+            &sam4l::i2c::I2C1,
+            &mut capsules::signbus::port_layer::I2C_BUFFER,
     //XXX: each of these resources was chosen randomly!
-                &sam4l::gpio::PA[16],
-                &sam4l::gpio::PA[17],
-                signbus_virtual_alarm,
-                Some(&sam4l::gpio::PA[18]),
-            ));
-    sam4l::i2c::I2C0.set_master_client(port_layer);
-    sam4l::i2c::I2C0.set_slave_client(port_layer);
+            &sam4l::gpio::PA[16],
+            &sam4l::gpio::PA[17],
+            signbus_virtual_alarm,
+            Some(&sam4l::gpio::PA[18]),
+		));
+    
+	sam4l::i2c::I2C1.set_master_client(port_layer);
+    sam4l::i2c::I2C1.set_slave_client(port_layer);
     //XXX: other clients need to be set here too!
 
-    /*
     // Signbus IO Interface
-    let signbus_io_layer = static_init!(
+    let io_layer = static_init!(
         capsules::signbus::io_layer::SignbusIOInterface<'static>,
         capsules::signbus::io_layer::SignbusIOInterface::new(port_layer,
-                                                             &mut capsules::signbus::io_layer::BUFFER0,
-                                                             &mut capsules::signbus::io_layer::BUFFER1
-                                                            ));
+              	&mut capsules::signbus::io_layer::BUFFER0,
+                &mut capsules::signbus::io_layer::BUFFER1
+     ));
 
-    port_layer.set_client(signbus_io_layer);
+    //port_layer.set_client(io_layer);
 
-
+/*
     // Signbus Protocol Layer
     let signbus_protocol_layer = static_init!(
         capsules::signbus::protocol_layer::SignbusProtocolLayer<'static>,
@@ -480,8 +482,8 @@ pub unsafe fn reset_handler() {
     // Uncomment to measure overheads for TakeCell and MapCell:
     // test_take_map_cell::test_take_map_cell();
 	
-	signbus_io_interface.signbus_io_init(0x20);
-	signbus_io_interface.signbus_io_recv();
+	io_layer.signbus_io_init(0x20);
+	io_layer.signbus_io_recv(255);
     
 	//debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);

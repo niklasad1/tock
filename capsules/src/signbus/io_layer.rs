@@ -113,17 +113,18 @@ impl<'a> SignbusIOInterface<'a> {
     /// Initialization routine to set up the slave address for this device.
     /// MUST be called before any other methods.
     pub fn signbus_io_init(&self, address: u8) -> ReturnCode {
+		debug!("io_layer_init");
 
-	self.this_device_address.set(address);
-	self.port_layer.init(address);
+		self.this_device_address.set(address);
+		self.port_layer.init(address);
 
-	if debug == 1 {
-	    //debug!("Address: {}", self.this_device_address.get());
-	    //debug!("SignbusNetworkHeader: {}", mem::size_of::<SignbusNetworkHeader>());
-	    //debug!("SignbusNetworkFlags: {}", mem::size_of::<SignbusNetworkFlags>());
-	}
+		if debug == 1 {
+	    	//debug!("Address: {}", self.this_device_address.get());
+	    	//debug!("SignbusNetworkHeader: {}", mem::size_of::<SignbusNetworkHeader>());
+	    	//debug!("SignbusNetworkFlags: {}", mem::size_of::<SignbusNetworkFlags>());
+		}
 
-	return ReturnCode::SUCCESS;
+		return ReturnCode::SUCCESS;
     }
 
 
@@ -245,21 +246,20 @@ impl<'a> SignbusIOInterface<'a> {
 	ReturnCode::SUCCESS
     }
 
-    pub fn signbus_io_recv(&self) -> ReturnCode {
-	/*
-	let rc = self.port_layer.i2c_slave_listen();
-	if rc != ReturnCode::SUCCESS {return rc;}
-	*/
+	pub fn signbus_io_recv(&self, max_len: usize) -> ReturnCode {
+		debug!("io_layer_recv");
+		let rc = self.port_layer.i2c_slave_listen(max_len);
+		if rc != ReturnCode::SUCCESS {return rc;}
 
-	// get_message() helper
-	ReturnCode::SUCCESS
+		// get_message() helper
+		ReturnCode::SUCCESS
     }
 }
 
 
 impl<'a> signbus::port_layer::PortLayerClient for SignbusIOInterface <'a> {
     fn packet_received(&self, packet: signbus::support::Packet, error: signbus::support::Error) {
-	debug!("PortLayerClient packet_received in io_layer");
+	//debug!("PortLayerClient packet_received in io_layer");
     }
 
     fn packet_sent(&self) {
