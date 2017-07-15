@@ -82,6 +82,7 @@ impl<'a> PortSignpostTock<'a> {
 		if i2c_address > 0x7f {
 			return ReturnCode::EINVAL;
 		}
+		debug!("Set my slave address to: {}", i2c_address);
 		hil::i2c::I2CSlave::set_address(self.i2c, i2c_address);
 
 		return ReturnCode::SUCCESS;
@@ -117,6 +118,7 @@ impl<'a> PortSignpostTock<'a> {
 	// Listen for messages to this device as a slave.
 	pub fn i2c_slave_listen(&self) -> ReturnCode {
 
+    	debug!("Signbus_Port_slave_listen");
 		self.slave_rx_buffer.take().map(|buffer| {
 			hil::i2c::I2CSlave::write_receive(self.i2c, buffer, 255);
 		});

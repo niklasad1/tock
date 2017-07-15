@@ -243,6 +243,7 @@ impl<'a> SignbusIOInterface<'a> {
 	}
 
 	pub fn signbus_io_recv(&self) -> ReturnCode {
+		debug!("Signbus_Interface_recv");
 		let rc = self.port_signpost_tock.i2c_slave_listen();
 		if rc != ReturnCode::SUCCESS {return rc;}	
 		

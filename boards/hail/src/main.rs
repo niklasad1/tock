@@ -78,12 +78,13 @@ struct Hail {
     console: &'static Console<'static, usart::USART>,
     gpio: &'static capsules::gpio::GPIO<'static, sam4l::gpio::GPIOPin>,
     timer: &'static TimerDriver<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast<'static>>>,
-    isl29035: &'static capsules::isl29035::Isl29035<'static,
-                                                    VirtualMuxAlarm<'static,
-                                                                    sam4l::ast::Ast<'static>>>,
-    si7021: &'static capsules::si7021::SI7021<'static,
-                                              VirtualMuxAlarm<'static, sam4l::ast::Ast<'static>>>,
-    ninedof: &'static capsules::ninedof::NineDof<'static>,
+    //isl29035: &'static capsules::isl29035::Isl29035<'static,
+    //                                                VirtualMuxAlarm<'static,
+    //                                                                sam4l::ast::Ast<'static>>>,
+    //si7021: &'static capsules::si7021::SI7021<'static,
+    //                                          VirtualMuxAlarm<'static, sam4l::ast::Ast<'static>>>,
+    //ninedof: &'static capsules::ninedof::NineDof<'static>,
+    //i2c_master_slave: &'static capsules::i2c_master_slave_driver::I2CMasterSlaveDriver<'static>,
     spi: &'static capsules::spi::Spi<'static, VirtualSpiMasterDevice<'static, sam4l::spi::Spi>>,
     nrf51822: &'static Nrf51822Serialization<'static, usart::USART>,
     adc: &'static capsules::adc::Adc<'static, sam4l::adc::Adc>,
@@ -108,13 +109,13 @@ impl Platform for Hail {
             3 => f(Some(self.timer)),
             4 => f(Some(self.spi)),
             5 => f(Some(self.nrf51822)),
-            6 => f(Some(self.isl29035)),
+            //6 => f(Some(self.isl29035)),
             7 => f(Some(self.adc)),
             8 => f(Some(self.led)),
             9 => f(Some(self.button)),
-            10 => f(Some(self.si7021)),
-            11 => f(Some(self.ninedof)),
-
+            //10 => f(Some(self.si7021)),
+            //11 => f(Some(self.ninedof)),
+			//13 => f(Some(self.i2c_master_slave)),
             14 => f(Some(self.rng)),
 
             16 => f(Some(self.crc)),
@@ -217,7 +218,7 @@ pub unsafe fn reset_handler() {
         MuxAlarm<'static, sam4l::ast::Ast>,
         MuxAlarm::new(&sam4l::ast::AST));
     ast.configure(mux_alarm);
-
+	/*
     let sensors_i2c = static_init!(MuxI2C<'static>, MuxI2C::new(&sam4l::i2c::I2C1));
     sam4l::i2c::I2C1.set_master_client(sensors_i2c);
 
@@ -247,7 +248,7 @@ pub unsafe fn reset_handler() {
                                           &mut capsules::isl29035::BUF));
     isl29035_i2c.set_client(isl29035);
     isl29035_virtual_alarm.set_client(isl29035);
-
+	*/
     // Timer
     let virtual_alarm1 = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
@@ -256,7 +257,7 @@ pub unsafe fn reset_handler() {
         TimerDriver<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
         TimerDriver::new(virtual_alarm1, kernel::Container::create()));
     virtual_alarm1.set_client(timer);
-
+/*
     // FXOS8700CQ accelerometer, device address 0x1e
     let fxos8700_i2c = static_init!(I2CDevice, I2CDevice::new(sensors_i2c, 0x1e));
     let fxos8700 = static_init!(
@@ -264,13 +265,14 @@ pub unsafe fn reset_handler() {
         capsules::fxos8700cq::Fxos8700cq::new(fxos8700_i2c,
                                                &sam4l::gpio::PA[9],
                                                &mut capsules::fxos8700cq::BUF));
-    fxos8700_i2c.set_client(fxos8700);
+	fxos8700_i2c.set_client(fxos8700);
     sam4l::gpio::PA[9].set_client(fxos8700);
 
     let ninedof = static_init!(
         capsules::ninedof::NineDof<'static>,
         capsules::ninedof::NineDof::new(fxos8700, kernel::Container::create()));
     hil::ninedof::NineDof::set_client(fxos8700, ninedof);
+*/
 
     // Initialize and enable SPI HAL
     // Set up an SPI MUX, so there can be multiple clients
@@ -370,14 +372,14 @@ pub unsafe fn reset_handler() {
 	// Port Signpost Tock	
     let port_signpost_tock = static_init!(
 		capsules::signbus::port_signpost_tock::PortSignpostTock<'static>,
-		capsules::signbus::port_signpost_tock::PortSignpostTock::new(&sam4l::i2c::I2C0,
+		capsules::signbus::port_signpost_tock::PortSignpostTock::new(&sam4l::i2c::I2C1,
 			&mut capsules::signbus::port_signpost_tock::BUFFER0,
 			&mut capsules::signbus::port_signpost_tock::BUFFER1,
 			&mut capsules::signbus::port_signpost_tock::BUFFER2,
 			&mut capsules::signbus::port_signpost_tock::BUFFER3
 		));
-	sam4l::i2c::I2C0.set_master_client(port_signpost_tock); 
-	sam4l::i2c::I2C0.set_slave_client(port_signpost_tock); 
+	sam4l::i2c::I2C1.set_master_client(port_signpost_tock); 
+	sam4l::i2c::I2C1.set_slave_client(port_signpost_tock); 
 
 	// Signbus IO Interface
 	let signbus_io_interface = static_init!(
@@ -404,7 +406,6 @@ pub unsafe fn reset_handler() {
 		capsules::signbus::signbus_app_layer::SignbusAppLayer::new(signbus_protocol_layer,
 			&mut capsules::signbus::signbus_app_layer::BUFFER0
 		));
-
 /* 
 	let port_signpost_tock_virtual_alarm = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
@@ -427,15 +428,29 @@ pub unsafe fn reset_handler() {
                                                     &mut capsules::symmetric_encryption::BUF,
                                                     &mut capsules::symmetric_encryption::IV));
     hil::symmetric_encryption::SymmetricEncryption::set_client(&sam4l::aes::AES, aes);
-
+    
+/*
+	//
+    // I2C Buses
+    //
+    let i2c_modules = static_init!(
+        capsules::i2c_master_slave_driver::I2CMasterSlaveDriver<'static>,
+        capsules::i2c_master_slave_driver::I2CMasterSlaveDriver::new(&sam4l::i2c::I2C1,
+            &mut capsules::i2c_master_slave_driver::BUFFER1,
+            &mut capsules::i2c_master_slave_driver::BUFFER2,
+            &mut capsules::i2c_master_slave_driver::BUFFER3));
+    sam4l::i2c::I2C1.set_master_client(i2c_modules);
+    sam4l::i2c::I2C1.set_slave_client(i2c_modules);
+*/
     let hail = Hail {
         console: console,
         gpio: gpio,
         timer: timer,
-        si7021: si7021,
-        isl29035: isl29035,
-        ninedof: ninedof,
-        spi: spi_syscalls,
+        //si7021: si7021,
+        //isl29035: isl29035,
+        //ninedof: ninedof,
+    	//i2c_master_slave: i2c_modules,
+	    spi: spi_syscalls,
         nrf51822: nrf_serialization,
         adc: adc,
         led: led,
@@ -468,19 +483,22 @@ pub unsafe fn reset_handler() {
     // Uncomment to measure overheads for TakeCell and MapCell:
     // test_take_map_cell::test_take_map_cell();
 	
-	//signbus_io_interface.signbus_io_init(0x28);
-
-	//signbus_io_interface.signbus_io_send(0x28, false, &mut capsules::signbus_io_interface::BUFFER2, 256);
+	signbus_io_interface.signbus_io_init(0x20);
+	signbus_io_interface.signbus_io_recv();
+	//signbus_io_interface.signbus_io_send(0x28, false, &mut capsules::signbus::signbus_io_interface::BUFFER2, 256);
 
 	//signbus_protocol_layer.signbus_protocol_send(0x28, &mut capsules::signbus_protocol_layer::BUFFER2, 256);
 
+	/*
 	signbus_app_layer.signbus_app_send(0x28, 
 					capsules::signbus::signbus_app_layer::SignbusFrameType::NotificationFrame,
 					capsules::signbus::signbus_app_layer::SignbusApiType::InitializationApiType,
 					2,
 					10,	
 					&mut capsules::signbus::signbus_app_layer::BUFFER0[0..10]);
+	*/
 
-    // debug!("Initialization complete. Entering main loop");
+	//port_signpost_tock.i2c_slave_listen();
+    //debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);
 }
