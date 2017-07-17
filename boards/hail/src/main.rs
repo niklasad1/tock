@@ -369,7 +369,7 @@ pub unsafe fn reset_handler() {
         capsules::dac::Dac<'static>,
         capsules::dac::Dac::new(&mut sam4l::dac::DAC));
 
-    // Signbus port layer
+    // signbus port layer
     let signbus_virtual_alarm = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
         VirtualMuxAlarm::new(mux_alarm));
@@ -399,7 +399,7 @@ pub unsafe fn reset_handler() {
                 &mut capsules::signbus::io_layer::BUFFER1
      ));
 
-    //port_layer.set_client(io_layer);
+    port_layer.set_client(io_layer);
 
 /*
     // Signbus Protocol Layer

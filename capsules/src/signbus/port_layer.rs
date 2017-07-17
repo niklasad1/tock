@@ -11,7 +11,7 @@ use kernel::common::take_cell::TakeCell;
 use kernel::hil;
 
 use signbus;
-use signbus::io_layer;
+use signbus::{io_layer, support};
 
 /// Buffer to use for I2C messages. Messages are at most 255 bytes in length.
 pub static mut I2C_BUFFER: [u8; 255] = [0; 255];
@@ -28,12 +28,12 @@ pub struct SignbusPortLayer<'a, A: hil::time::Alarm+'a> {
 
 	debug_led: Cell<Option<&'a hil::gpio::Pin>>,
 
-	client: Cell<Option<&'static signbus::io_layer::SignbusIOInterface<'static>>>,
+	client: Cell<Option<&'static io_layer::SignbusIOInterface<'static>>>,
 }
 
 pub trait PortLayerClient {
      // Called when a new packet is received over I2C.
-     fn packet_received(&self, packet: signbus::support::Packet, error: signbus::support::Error);
+     fn packet_received(&self, packet: support::Packet, error: support::Error);
 
      // Called when an I2C master write command is complete.
      fn packet_sent(&self);
@@ -49,9 +49,8 @@ pub trait PortLayerClient {
 }
 
 pub trait PortLayer {
-	fn set_client(&self, client: &'static io_layer::SignbusIOInterface) -> ReturnCode;
 	fn init(&self, i2c_address: u8) -> ReturnCode;
-	fn i2c_master_write(&self, i2c_address: u8, packet: signbus::support::Packet) -> ReturnCode;
+	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, len: usize) -> ReturnCode;
 	fn i2c_slave_listen(&self, max_len: usize) -> ReturnCode;
 	fn i2c_slave_read_setup(&self, buf: &[u8], len: usize) -> ReturnCode;
 	fn mod_out_set(&self) -> ReturnCode;
@@ -83,15 +82,15 @@ impl<'a, A: hil::time::Alarm+'a> SignbusPortLayer<'a, A> {
 	       client: Cell::new(None),
 	  }
      }
-}
-
-impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
-	fn set_client(&self, client: &'static io_layer::SignbusIOInterface) -> ReturnCode {
+	
+	pub fn set_client(&self, client: &'static io_layer::SignbusIOInterface) -> ReturnCode {
 		self.client.set(Some(client));
 		
 		ReturnCode::SUCCESS
 	}	
+}
 
+impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 	fn init(&self, i2c_address: u8) -> ReturnCode {
 		debug!("port_layer_init");
 		if i2c_address > 0x7f {
@@ -101,30 +100,27 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 		ReturnCode::SUCCESS
 	}
 
-     // Do a write to another I2C device
-     fn i2c_master_write(&self, i2c_address: u8, packet: signbus::support::Packet) -> ReturnCode {
-	  /*
+    // Do a write to another I2C device
+	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, len: usize) -> ReturnCode {
 
-	  debug!("Signbus_Port_master_write");
+		debug!("port_layer_master_write");
+/*
+		self.master_tx_buffer.take().map(|buffer|{
+	    	hil::i2c::I2CMaster::enable(self.i2c);
+	    	hil::i2c::I2CMaster::write(self.i2c, address, buffer, len as u8);
+	  	});
+*/
 
-	  self.master_tx_buffer.take().map(|buffer|{
-	       hil::i2c::I2CMaster::enable(self.i2c);
-	       hil::i2c::I2CMaster::write(self.i2c, address, buffer, len as u8);
-	  });
-
-	  // TODO: yield() or implement client callback
-
-	  self.state.set(State::MasterWrite);
-	  return ReturnCode::SUCCESS;
-	  */
-	  ReturnCode::SUCCESS
+	  	ReturnCode::SUCCESS
      }
 
 
      // Listen for messages to this device as a slave.
 	fn i2c_slave_listen(&self, max_len: usize) -> ReturnCode {
 		debug!("port_layer_slave_listen");
+	
 		
+	
 		self.i2c_buffer.take().map(|buffer| {
 	    	hil::i2c::I2CSlave::write_receive(self.i2c, buffer, 255);
 	  	});
