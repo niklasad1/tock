@@ -10,10 +10,11 @@
 extern crate capsules;
 extern crate cortexm4;
 extern crate compiler_builtins;
-#[macro_use(static_init)]
+#[macro_use(debug, static_init)]
 extern crate kernel;
 extern crate sam4l;
 
+use capsules::signbus::{support, io_layer, port_layer};
 use capsules::console::{self, Console};
 use capsules::nrf51822_serialization::{self, Nrf51822Serialization};
 use capsules::timer::TimerDriver;
@@ -481,10 +482,46 @@ pub unsafe fn reset_handler() {
 
     // Uncomment to measure overheads for TakeCell and MapCell:
     // test_take_map_cell::test_take_map_cell();
+/*
+	// serial_packet test
+	// Network Flags
+    let flags: support::SignbusNetworkFlags = support::SignbusNetworkFlags {
+        is_fragment:    false,
+        is_encrypted:   false,
+        rsv_wire_bit5:  false,
+        rsv_wire_bit4:  false,
+        version:        0x1,
+    };
+
+    // Network Header
+    let header: support::SignbusNetworkHeader = support::SignbusNetworkHeader {
+        flags:              flags,
+        src:                0x20,
+        sequence_number:    15,
+        length:             12 + 15,
+        fragment_offset:    0,
+    };
+
+    // Packet
+    let mut packet: support::Packet = support::Packet {
+        header: header,
+        data:   &mut io_layer::BUFFER2,
+    };
 	
+	support::serialize_packet(packet, 15, &mut io_layer::BUFFER0);
+*/
+	
+	// slave_listen test
+	//io_layer.signbus_io_init(0x20);
+	//io_layer.signbus_io_recv(255);
+
+	// master_write test
 	io_layer.signbus_io_init(0x20);
-	io_layer.signbus_io_recv(255);
-    
+	io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
+
+	
+
+
 	//debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);
 }

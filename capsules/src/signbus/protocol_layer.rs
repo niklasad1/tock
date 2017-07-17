@@ -38,7 +38,7 @@ impl<'a> SignbusProtocolLayer<'a,> {
 	pub fn signbus_protocol_send(&self, 
 								address: u8,
 								data: &'static mut [u8],
-								len: u16) -> ReturnCode {
+								len: usize) -> ReturnCode {
 		
 		debug!("Signbus_Protocol_send");
 		// TODO: encryption not availabe in Rust

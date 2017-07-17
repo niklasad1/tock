@@ -82,13 +82,13 @@ impl<'a> SignbusAppLayer<'a,> {
 							frame_type: SignbusFrameType,
 							api_type: SignbusApiType,
 							message_type: u8,
-							message_length: u16,
+							message_length: usize,
 							message: &'static mut [u8]) -> ReturnCode {
 		
 		debug!("Signbus_App_send");
 		
 		let mut rc = ReturnCode::SUCCESS;
-		let len: u16 = 1 + 1 + 1 + message_length;
+		let len: usize = 1 + 1 + 1 + message_length;
 		
 		// Concatenate info onto message
 		// TODO: Greather than 256 could panic

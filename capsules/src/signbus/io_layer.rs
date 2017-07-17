@@ -13,58 +13,13 @@ use kernel::common::take_cell::{MapCell, TakeCell};
 use kernel::hil;
 
 use signbus;
+use signbus::{support, port_layer};
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
-pub static mut BUFFER2: [u8; 256] = [1; 256];
+pub static mut BUFFER2: [u8; 15] = [4; 15];
 
 static debug: u8 = 1;
-const I2C_MAX_LEN: u16 = 255;
-
-////////////////////
-// NETWORK PACKET //
-////////////////////
-#[repr(C, packed)]
-pub struct SignbusNetworkFlags {
-    is_fragment:	bool,
-    is_encrypted:	bool,
-    rsv_wire_bit5:	bool,
-    rsv_wire_bit4:	bool,
-    version:		u8,
-}
-
-#[repr(C, packed)]
-pub struct SignbusNetworkHeader {
-    flags:				SignbusNetworkFlags,
-    src:				u8,
-    sequence_number:	u16,
-    length:				u16,
-    fragment_offset:	u16,
-}
-
-
-#[repr(C, packed)]
-pub struct Packet {
-    header: SignbusNetworkHeader,
-    data:	&'static mut [u8],
-}
-////////////////////
-// ************** //
-////////////////////
-
-
-
-////////////////////
-//   NEW PACKET   //
-////////////////////
-pub struct NewPacket {
-    new: bool,
-    len: u16,
-}
-////////////////////
-// ************** //
-////////////////////
-
 
 // Function needed to turn struct into [u8]
 // Should be okay if structs are packed
@@ -73,16 +28,15 @@ unsafe fn as_byte_slice<'a, T>(input: &'a T) -> &'a [u8] {
 }
 
 pub struct SignbusIOInterface<'a> {
-    port_layer:		&'a signbus::port_layer::PortLayer,
+    port_layer:				&'a port_layer::PortLayer,
     this_device_address:	Cell<u8>,
     sequence_number:		Cell<u16>,
-    newpkt:					Cell<NewPacket>,
     slave_write_buf:		TakeCell <'static, [u8]>,
     packet_buf:				TakeCell <'static, [u8]>,
 }
 
 impl<'a> SignbusIOInterface<'a> {
-    pub fn new(port_layer: &'a signbus::port_layer::PortLayer,
+    pub fn new(port_layer: 	&'a port_layer::PortLayer,
 	       slave_write_buf:	&'static mut [u8],
 	       packet_buf:		&'static mut [u8]) -> SignbusIOInterface <'a> {
 
@@ -90,7 +44,6 @@ impl<'a> SignbusIOInterface<'a> {
 	    port_layer:		port_layer,
 	    this_device_address:	Cell::new(0),
 	    sequence_number:		Cell::new(0),
-	    newpkt:					Cell::new(NewPacket {new: false,len: 0,}),
 	    slave_write_buf:		TakeCell::new(slave_write_buf),
 	    packet_buf:				TakeCell::new(packet_buf),
 	}
@@ -133,121 +86,41 @@ impl<'a> SignbusIOInterface<'a> {
 			   dest: u8,
 			   encrypted: bool,
 			   data: &'static mut [u8],
-			   len: u16) -> ReturnCode {
+			   len: usize) -> ReturnCode {
+		debug!("Signbus_Interface_send");
+    
+		// Network Flags
+	    let flags: support::SignbusNetworkFlags = support::SignbusNetworkFlags {
+	        is_fragment:    false,
+	        is_encrypted:   encrypted,
+	        rsv_wire_bit5:  false,
+	        rsv_wire_bit4:  false,
+	        version:        0x1,
+	    };
+	
+	    // Network Header
+	    let header: support::SignbusNetworkHeader = support::SignbusNetworkHeader {
+	        flags:              flags,
+	        src:                0x20,
+	        sequence_number:    15,
+	        length:             12 + 15,
+	        fragment_offset:    0,
+	    };
+	
+	    // Packet
+	    let mut packet: support::Packet = support::Packet {
+	        header: header,
+	        data:   data,
+	    };
 
-	debug!("Signbus_Interface_send");
+		let rc = self.port_layer.i2c_master_write(dest, packet, len);	
+		if rc != ReturnCode::SUCCESS {return rc;}
 
-	// update sequence number
-	self.sequence_number.set(self.sequence_number.get() + 1);
-
-	// size of header (sent everytime)
-	let header_size: u16 = mem::size_of::<SignbusNetworkHeader>() as u16;
-	// max data in one packet
-	let max_data_len: u16 = I2C_MAX_LEN - header_size;
-	// number of bytes left to be sent
-	let mut to_send: u16 = len;
-	// number of packets to be sent
-	let mut num_packets: u16 = len/max_data_len + 1;
-	if len % max_data_len == 0 {
-	    num_packets = num_packets - 1;
-	}
-
-	// Network Flags
-	let flags: SignbusNetworkFlags = SignbusNetworkFlags {
-	    is_fragment:	false, // to_send > max_data_len
-	    is_encrypted:	encrypted,
-	    rsv_wire_bit5:	false,
-	    rsv_wire_bit4:	false,
-	    version:		0x1,
-	};
-
-	// Network Header
-	let header: SignbusNetworkHeader = SignbusNetworkHeader {
-	    flags:				flags,
-	    src:				self.this_device_address.get(),
-	    sequence_number:	self.htons(self.sequence_number.get()),
-	    length:				self.htons(num_packets * header_size + len),
-	    fragment_offset:	self.htons(0),
-	};
-
-	// Packet
-	let mut packet: Packet = Packet {
-	    header: header,
-	    data:	data,
-	};
-
-	if debug == 1 {
-	    //debug!("{:?}", data.len());
-	    //debug!("{:?}", packet.data.len());
-	    //debug!("data length: {} ", packet.data.len());
-	    //debug!("to_send: {} ", to_send);
-	    //debug!("max_data_len: {} ", max_data_len);
-	    //debug!("header_size: {} ", header_size);
-	    //debug!("num_packets: {} ", num_packets);
-	}
-
-
-	//while to_send > 0 {
-	let more_packets: bool = to_send > max_data_len;;
-	let mut START: usize = (header_size + 1) as usize;
-
-	// UPDATE HEADER
-	packet.header.flags.is_fragment = more_packets;
-	packet.header.fragment_offset = self.htons(len-to_send);
-
-	/*
-	// COPY HEADER
-	self.port_layer.master_tx_buffer.map(|port_buffer|{
-	    let d = &mut port_buffer.as_mut()[0..header_size as usize];
-	    let bytes: &[u8]= unsafe { as_byte_slice(&packet.header) };
-	    for (i, c) in bytes[0..header_size as usize].iter().enumerate() {
-		d[i] = *c;
-	    }
-	});
-
-	// COPY DATA
-	if more_packets == true {
-	    self.port_layer.master_tx_buffer.map(|port_buffer|{
-		let d = &mut port_buffer.as_mut()[START..I2C_MAX_LEN as usize];
-		for (i, c) in packet.data[0..(max_data_len-1) as usize].iter().enumerate() {
-		    d[i] = *c;
-		}
-	    });
-	}
-	else {
-	    self.port_layer.master_tx_buffer.map(|port_buffer|{
-		let d = &mut port_buffer.as_mut()[START..(START as u16 + to_send) as usize];
-		for (i, c) in packet.data[0..to_send as usize].iter().enumerate() {
-		    d[i] = *c;
-		}
-	    });
-	}
-	*/
-
-	/*
-	// SEND I2C message and update bytes left to send
-	if more_packets == true {
-	    let rc = self.port_layer.i2c_master_write(dest, I2C_MAX_LEN);
-	    if rc != ReturnCode::SUCCESS { return rc; }
-	    to_send -= max_data_len;
-	}
-	else {
-	    let rc = self.port_layer.i2c_master_write(dest, to_send);
-	    if rc != ReturnCode::SUCCESS { return rc; }
-	    to_send = 0;
-	}
-	//}
-	*/
-
-	if debug == 1 {
-	    //debug!("End of Function");
-	}
-
-	ReturnCode::SUCCESS
+		ReturnCode::SUCCESS
     }
 
 	pub fn signbus_io_recv(&self, max_len: usize) -> ReturnCode {
-		debug!("io_layer_recv");
+		//debug!("io_layer_recv");
 		let rc = self.port_layer.i2c_slave_listen(max_len);
 		if rc != ReturnCode::SUCCESS {return rc;}
 

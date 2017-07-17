@@ -1,5 +1,8 @@
 /// Helper code for Signbus
 
+pub const I2C_MAX_LEN: usize = 255;
+pub const HEADER_SIZE: usize = 12;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
 }
@@ -8,32 +11,32 @@ pub enum Error {
 /// Signbus Packet 
 #[repr(C, packed)]
 pub struct SignbusNetworkFlags {
-    is_fragment:	bool,
-    is_encrypted:	bool,
-    rsv_wire_bit5:	bool,
-    rsv_wire_bit4:	bool,
-    version:		u8,
+    pub is_fragment:	bool,
+    pub is_encrypted:	bool,
+    pub rsv_wire_bit5:	bool,
+    pub rsv_wire_bit4:	bool,
+    pub version:		u8,
 }
 
 #[repr(C, packed)]
 pub struct SignbusNetworkHeader {
-    flags:				SignbusNetworkFlags,
-    src:				u8,
-    sequence_number:	u16,
-    length:				u16,
-    fragment_offset:	u16,
+    pub flags:				SignbusNetworkFlags,
+    pub src:				u8,
+    pub sequence_number:	u16,
+    pub length:				u16,
+    pub fragment_offset:	u16,
 }
 
 //#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct Packet {
-	header: SignbusNetworkHeader,
-	data: &'static mut [u8],
+	pub header: SignbusNetworkHeader,
+	pub data: &'static mut [u8],
 }
 
-impl Packet {
+//impl Packet {
     //XXX: need to figure out how to size this buffer right
-    pub fn serialize_packet(packet: Packet, buf: &mut [u8]) -> &[u8] {
+    pub fn serialize_packet(packet: Packet, data_len: usize, buf: &mut [u8]) -> &[u8] {
 
 		// Network Flags	
 		buf[0] = packet.header.flags.is_fragment as u8; 
@@ -43,12 +46,20 @@ impl Packet {
 		buf[4] = packet.header.flags.version;
 
 		buf[5] = packet.header.src;	
-		buf[6] = (packet.header.sequence_number & 0x0F) as u8;
-		buf[7] = (packet.header.sequence_number & 0xF0 >> 8) as u8;
-		buf[8] = (packet.header.length & 0x0F) as u8;
-		buf[9] = (packet.header.length & 0xF0 >> 8) as u8;
-		buf[10] = (packet.header.fragment_offset & 0x0F) as u8;
-		buf[11] = (packet.header.fragment_offset & 0xF0 >> 8) as u8;
+		buf[6] = (packet.header.sequence_number & 0x00FF) as u8;
+		buf[7] = ((packet.header.sequence_number & 0xFF00) >> 8) as u8;
+		buf[8] = (packet.header.length & 0x00FF) as u8;
+		buf[9] = ((packet.header.length & 0xFF00) >> 8) as u8;
+		buf[10] = (packet.header.fragment_offset & 0x00FF) as u8;
+		buf[11] = ((packet.header.fragment_offset & 0xFF00) >> 8) as u8;
+
+			
+		//let d = &mut buf.as_mut()[12..data_len+12];
+		for (i, c) in packet.data[0..data_len].iter().enumerate() {
+		    buf[i+12] = *c;
+		}
+		
+		//debug!("{:?}", buf);
 
 		buf 
     }
@@ -58,5 +69,5 @@ impl Packet {
 	//Packet{
 	//}
     //}
-}
+//}
 
