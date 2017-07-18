@@ -482,6 +482,8 @@ pub unsafe fn reset_handler() {
 
     // Uncomment to measure overheads for TakeCell and MapCell:
     // test_take_map_cell::test_take_map_cell();
+
+	// TESTS
 /*
 	// serial_packet test
 	// Network Flags
@@ -519,8 +521,10 @@ pub unsafe fn reset_handler() {
 	io_layer.signbus_io_init(0x20);
 	io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
 
-	
-
+	// alarm test		
+	// set gpio
+	port_layer.delay_ms(2);	
+	// clear gpio
 
 	//debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);

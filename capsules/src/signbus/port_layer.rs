@@ -9,6 +9,7 @@ use core::cell::Cell;
 use kernel::ReturnCode;
 use kernel::common::take_cell::TakeCell;
 use kernel::hil;
+use kernel::hil::time::Frequency;
 
 use signbus;
 use signbus::{io_layer, support};
@@ -58,7 +59,7 @@ pub trait PortLayer {
 	fn mod_in_read(&self) -> ReturnCode;
 	fn mod_in_enable_interrupt(&self) -> ReturnCode;
 	fn mod_in_disable_interrupt(&self) -> ReturnCode;
-	fn delay_ms(&self) -> ReturnCode;
+	pub fn delay_ms(&self, time: u32) -> ReturnCode;
 	fn debug_led_on(&self) -> ReturnCode;
 	fn debug_led_off(&self) -> ReturnCode;
 }
@@ -121,7 +122,7 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 
      // Listen for messages to this device as a slave.
 	fn i2c_slave_listen(&self, max_len: usize) -> ReturnCode {
-		//debug!("port_layer_slave_listen");
+		debug!("port_layer_slave_listen");
 		
 		self.i2c_buffer.take().map(|buffer| {
 	    	hil::i2c::I2CSlave::write_receive(self.i2c, buffer, 255);
@@ -133,49 +134,55 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 	  	ReturnCode::SUCCESS
 	}
 
-     fn i2c_slave_read_setup(&self, buf: &[u8], len: usize) -> ReturnCode {
-	  /*
-	  self.slave_tx_buffer.take().map(|buffer| {
-	       hil::i2c::I2CSlave::read_send(self.i2c, buffer, len as u8);
-	  });
+	fn i2c_slave_read_setup(&self, buf: &[u8], len: usize) -> ReturnCode {
+	/*
+		self.slave_tx_buffer.take().map(|buffer| {
+			hil::i2c::I2CSlave::read_send(self.i2c, buffer, len as u8);
+	  	});
 
-	  self.state.set(State::MasterRead);
-	  return ReturnCode::SUCCESS;
-	  */
-	  ReturnCode::SUCCESS
-     }
+	  	self.state.set(State::MasterRead);
+	  	return ReturnCode::SUCCESS;
+	*/
+		ReturnCode::SUCCESS
+	}
 
-     fn mod_out_set(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	fn mod_out_set(&self) -> ReturnCode {
+ 		ReturnCode::SUCCESS
+	}
 
-     fn mod_out_clear(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	fn mod_out_clear(&self) -> ReturnCode {
+ 		ReturnCode::SUCCESS
+	}
 
-     fn mod_in_read(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	fn mod_in_read(&self) -> ReturnCode {
+ 		ReturnCode::SUCCESS
+	}
 
-     fn mod_in_enable_interrupt(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	fn mod_in_enable_interrupt(&self) -> ReturnCode {
+ 		ReturnCode::SUCCESS
+	}
 
-     fn mod_in_disable_interrupt(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	fn mod_in_disable_interrupt(&self) -> ReturnCode {
+ 		ReturnCode::SUCCESS
+	}
 
-     fn delay_ms(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	pub fn delay_ms(&self, time: u32) -> ReturnCode {
+		debug!("port_layer_delay: {}", time);
+		
+		let interval = time * <A::Frequency>::frequency() / 1000;
+		let tics = self.alarm.now().wrapping_add(interval);
+		self.alarm.set_alarm(tics);
+		
+		ReturnCode::SUCCESS	
+	}
 
-     fn debug_led_on(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	fn debug_led_on(&self) -> ReturnCode {
+ 		ReturnCode::SUCCESS
+	}
 
-     fn debug_led_off(&self) -> ReturnCode {
-	  ReturnCode::SUCCESS
-     }
+	fn debug_led_off(&self) -> ReturnCode {
+ 		ReturnCode::SUCCESS
+	}
 }
 
 /// Handle I2C Master callbacks.
