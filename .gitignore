@@ -8,6 +8,7 @@ build/*
 *.ll
 .gdbinit
 *.swp
+*.swo
 
 ## OS X
 .DS_Store
