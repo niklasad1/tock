@@ -10,7 +10,8 @@ use kernel::ReturnCode;
 use kernel::common::take_cell::TakeCell;
 use kernel::hil;
 use kernel::hil::time::Frequency;
-
+use kernel::hil::gpio;
+use kernel::hil::gpio::{Pin, PinCtl, InputMode, InterruptMode};
 use signbus;
 use signbus::{io_layer, support};
 
@@ -57,9 +58,9 @@ pub trait PortLayer {
 	fn mod_out_set(&self) -> ReturnCode;
 	fn mod_out_clear(&self) -> ReturnCode;
 	fn mod_in_read(&self) -> ReturnCode;
-	fn mod_in_enable_interrupt(&self) -> ReturnCode;
+	fn mod_in_enable_interrupt(&self,pin_num: usize, pin_config: gpio::InputMode, irq_config: gpio::InterruptMode) -> ReturnCode;
 	fn mod_in_disable_interrupt(&self) -> ReturnCode;
-	pub fn delay_ms(&self, time: u32) -> ReturnCode;
+	fn delay_ms(&self, time: u32) -> ReturnCode;
 	fn debug_led_on(&self) -> ReturnCode;
 	fn debug_led_off(&self) -> ReturnCode;
 }
@@ -147,26 +148,49 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 	}
 
 	fn mod_out_set(&self) -> ReturnCode {
- 		ReturnCode::SUCCESS
+ 		debug!("port_layer_mod_out_set");
+		self.mod_out_pin.make_output();
+		self.mod_out_pin.set();
+		ReturnCode::SUCCESS
 	}
 
 	fn mod_out_clear(&self) -> ReturnCode {
+ 		debug!("port_layer_mod_out_clear");
+		self.mod_out_pin.make_output();
+		self.mod_out_pin.clear();
  		ReturnCode::SUCCESS
 	}
 
 	fn mod_in_read(&self) -> ReturnCode {
- 		ReturnCode::SUCCESS
+ 		debug!("port_layer_mod_in_read");
+		let pin_state = self.mod_in_pin.read();
+		ReturnCode::SuccessWithValue {value: pin_state as usize}
 	}
 
-	fn mod_in_enable_interrupt(&self) -> ReturnCode {
- 		ReturnCode::SUCCESS
+	fn mod_in_enable_interrupt(&self, 
+							pin_num: 	usize, // Do I need this?
+							pin_config: gpio::InputMode, 
+							irq_config: gpio::InterruptMode) -> ReturnCode {
+ 		
+		debug!("port_layer_mod_in_enable_interupt");
+ 		
+		self.mod_in_pin.make_input();	
+		// TODO: need a PinCtl
+		//self.mod_in_pin.set_input_mode(pin_config);
+		self.mod_in_pin.enable_interrupt(pin_num, irq_config);
+
+		ReturnCode::SUCCESS
 	}
 
-	fn mod_in_disable_interrupt(&self) -> ReturnCode {
- 		ReturnCode::SUCCESS
+	fn mod_in_disable_interrupt(&self) -> ReturnCode {	
+ 		debug!("port_layer_mod_in_disable_interupt");
+
+        self.mod_in_pin.disable_interrupt();
+        self.mod_in_pin.disable();
+		ReturnCode::SUCCESS
 	}
 
-	pub fn delay_ms(&self, time: u32) -> ReturnCode {
+	fn delay_ms(&self, time: u32) -> ReturnCode {
 		debug!("port_layer_delay: {}", time);
 		
 		let interval = time * <A::Frequency>::frequency() / 1000;

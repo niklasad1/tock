@@ -523,7 +523,7 @@ pub unsafe fn reset_handler() {
 
 	// alarm test		
 	// set gpio
-	port_layer.delay_ms(2);	
+	// port_layer.delay_ms(2);	
 	// clear gpio
 
 	//debug!("Initialization complete. Entering main loop");

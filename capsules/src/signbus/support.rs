@@ -7,6 +7,19 @@ pub const HEADER_SIZE: usize = 12;
 pub enum Error {
 }
 
+pub enum IrqConfig {
+	EitherEdge,
+	RisingEdge,
+	FallingEdge,
+}
+
+
+pub enum PinConfig {
+	PullUp,
+	PullDown,
+	PullNone,
+}
+
 
 /// Signbus Packet 
 #[repr(C, packed)]
