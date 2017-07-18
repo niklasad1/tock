@@ -19,14 +19,6 @@ pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
 pub static mut BUFFER2: [u8; 15] = [4; 15];
 
-static debug: u8 = 1;
-
-// Function needed to turn struct into [u8]
-// Should be okay if structs are packed
-unsafe fn as_byte_slice<'a, T>(input: &'a T) -> &'a [u8] {
-    slice::from_raw_parts(input as *const T as *const u8, mem::size_of::<T>())
-}
-
 pub struct SignbusIOInterface<'a> {
     port_layer:				&'a port_layer::PortLayer,
     this_device_address:	Cell<u8>,
@@ -52,7 +44,7 @@ impl<'a> SignbusIOInterface<'a> {
 
     // Host-to-network short (packages certain data into header)
     fn htons(&self, a: u16) -> u16 {
-	return ((a as u16 & 0x00FF) << 8) | ((a as u16 & 0xFF00) >> 8);
+		return ((a as u16 & 0x00FF) << 8) | ((a as u16 & 0xFF00) >> 8);
     }
 
     fn get_message(&self,
@@ -71,12 +63,6 @@ impl<'a> SignbusIOInterface<'a> {
 		self.this_device_address.set(address);
 		self.port_layer.init(address);
 
-		if debug == 1 {
-	    	//debug!("Address: {}", self.this_device_address.get());
-	    	//debug!("SignbusNetworkHeader: {}", mem::size_of::<SignbusNetworkHeader>());
-	    	//debug!("SignbusNetworkFlags: {}", mem::size_of::<SignbusNetworkFlags>());
-		}
-
 		return ReturnCode::SUCCESS;
     }
 
@@ -88,7 +74,9 @@ impl<'a> SignbusIOInterface<'a> {
 			   data: &'static mut [u8],
 			   len: usize) -> ReturnCode {
 		debug!("Signbus_Interface_send");
-    
+   
+		self.sequence_number.set(self.sequence_number.get() + 1);	
+ 
 		// Network Flags
 	    let flags: support::SignbusNetworkFlags = support::SignbusNetworkFlags {
 	        is_fragment:    false,
@@ -101,9 +89,9 @@ impl<'a> SignbusIOInterface<'a> {
 	    // Network Header
 	    let header: support::SignbusNetworkHeader = support::SignbusNetworkHeader {
 	        flags:              flags,
-	        src:                0x20,
-	        sequence_number:    15,
-	        length:             12 + 15,
+	        src:                dest,
+	        sequence_number:    self.sequence_number.get(),
+	        length:             support::HEADER_SIZE + len,
 	        fragment_offset:    0,
 	    };
 	
@@ -131,24 +119,28 @@ impl<'a> SignbusIOInterface<'a> {
 
 
 impl<'a> signbus::port_layer::PortLayerClient for SignbusIOInterface <'a> {
-    fn packet_received(&self, packet: signbus::support::Packet, error: signbus::support::Error) {
-	//debug!("PortLayerClient packet_received in io_layer");
+	fn packet_received(&self, packet: signbus::support::Packet, error: signbus::support::Error) {
+		debug!("PortLayerClient packet_received in io_layer");
     }
 
     fn packet_sent(&self) {
-	debug!("PortLayerClient packet_sent in io_layer");
+		debug!("PortLayerClient packet_sent in io_layer");
+		
+		
+
+
     }
 
     fn packet_read_from_slave(&self) {
-	debug!("PortLayerClient packet_read_from_slave in io_layer");
+		debug!("PortLayerClient packet_read_from_slave in io_layer");
     }
 
     fn mod_in_interrupt(&self) {
-	debug!("PortLayerClient mod_in_interrupt in io_layer");
+		debug!("PortLayerClient mod_in_interrupt in io_layer");
     }
 
     fn delay_complete(&self) {
-	debug!("PortLayerClient delay_complete in io_layer");
+		debug!("PortLayerClient delay_complete in io_layer");
     }
 }
 

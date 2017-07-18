@@ -31,6 +31,9 @@ pub struct SignbusPortLayer<'a, A: hil::time::Alarm+'a> {
 	debug_led: Cell<Option<&'a hil::gpio::Pin>>,
 
 	client: Cell<Option<&'static io_layer::SignbusIOInterface<'static>>>,
+
+	listening:		Cell<bool>,
+	master_action:	Cell<support::MasterAction>,
 }
 
 pub trait PortLayerClient {
@@ -58,7 +61,7 @@ pub trait PortLayer {
 	fn mod_out_set(&self) -> ReturnCode;
 	fn mod_out_clear(&self) -> ReturnCode;
 	fn mod_in_read(&self) -> ReturnCode;
-	fn mod_in_enable_interrupt(&self,pin_num: usize, pin_config: gpio::InputMode, irq_config: gpio::InterruptMode) -> ReturnCode;
+	fn mod_in_enable_interrupt(&self) -> ReturnCode;
 	fn mod_in_disable_interrupt(&self) -> ReturnCode;
 	fn delay_ms(&self, time: u32) -> ReturnCode;
 	fn debug_led_on(&self) -> ReturnCode;
@@ -82,6 +85,8 @@ impl<'a, A: hil::time::Alarm+'a> SignbusPortLayer<'a, A> {
 	       	alarm: alarm,
 	       	debug_led: Cell::new(debug_led),
 	       	client: Cell::new(None),
+			listening: Cell::new(false),
+			master_action:	Cell::new(support::MasterAction::Write),
 		}
     }
 	
@@ -89,6 +94,21 @@ impl<'a, A: hil::time::Alarm+'a> SignbusPortLayer<'a, A> {
 		self.client.set(Some(client));
 		
 		ReturnCode::SUCCESS
+	}
+	pub fn delay(&self, time: u32) {
+		self.delay_ms(time);
+	}
+
+	pub fn set(&self) {
+		self.mod_out_set();
+	}	
+	
+	pub fn clear(&self) {
+		self.mod_out_clear();
+	}
+	
+	pub fn enable_interrupt(&self) {
+		self.mod_in_enable_interrupt();
 	}	
 }
 
@@ -117,6 +137,7 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 										(data_len+support::HEADER_SIZE) as u8);
 	  	});
 
+		self.master_action.set(support::MasterAction::Write);
 	  	ReturnCode::SUCCESS
      }
 
@@ -131,6 +152,8 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 
 	  	hil::i2c::I2CSlave::enable(self.i2c);
 	  	hil::i2c::I2CSlave::listen(self.i2c);
+
+		self.listening.set(true);
 
 	  	ReturnCode::SUCCESS
 	}
@@ -167,17 +190,12 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 		ReturnCode::SuccessWithValue {value: pin_state as usize}
 	}
 
-	fn mod_in_enable_interrupt(&self, 
-							pin_num: 	usize, // Do I need this?
-							pin_config: gpio::InputMode, 
-							irq_config: gpio::InterruptMode) -> ReturnCode {
+	fn mod_in_enable_interrupt(&self) -> ReturnCode {
  		
 		debug!("port_layer_mod_in_enable_interupt");
- 		
+ 			
 		self.mod_in_pin.make_input();	
-		// TODO: need a PinCtl
-		//self.mod_in_pin.set_input_mode(pin_config);
-		self.mod_in_pin.enable_interrupt(pin_num, irq_config);
+		self.mod_in_pin.enable_interrupt(0, gpio::InterruptMode::FallingEdge);
 
 		ReturnCode::SUCCESS
 	}
@@ -213,6 +231,32 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwMasterClient for SignbusPortLayer<'a, A> {
 	fn command_complete(&self, buffer: &'static mut [u8], error: hil::i2c::Error) {
 		debug!("I2CHwMasterClient command_complete for SignbusPortLayer");
+	
+        let err: isize = match error {
+            hil::i2c::Error::AddressNak => -1,
+            hil::i2c::Error::DataNak => -2,
+            hil::i2c::Error::ArbitrationLost => -3,
+            hil::i2c::Error::CommandComplete => 0,
+        };
+
+        match self.master_action.get() {
+            support::MasterAction::Write => {
+				self.i2c_buffer.replace(buffer);
+                self.client.get().map(|client| {
+					client.packet_sent();	
+				});
+			}
+
+            support::MasterAction::Read(read_len) => {
+				// TODO: in the future
+			}
+		}
+		// Check to see if we were listening as an I2C slave and should re-enable
+        // that mode.
+        if self.listening.get() {
+            hil::i2c::I2CSlave::enable(self.i2c);
+            hil::i2c::I2CSlave::listen(self.i2c);
+        }
 	}
 }
 
@@ -239,15 +283,15 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwSlaveClient for SignbusPortLayer
 
 /// Handle alarm callbacks.
 impl<'a, A: hil::time::Alarm+'a> hil::time::Client for SignbusPortLayer<'a, A> {
-     fn fired(&self) {
-	  debug!("time::Client fired for SignbusPortLayer");
-     }
+	fn fired(&self) {
+	 	debug!("time::Client fired for SignbusPortLayer");
+    }
 }
 
 /// Handle GPIO callbacks.
 impl<'a, A: hil::time::Alarm+'a> hil::gpio::Client for SignbusPortLayer<'a, A> {
-     fn fired(&self, _: usize) {
-	  debug!("gpio::Client fired for SignbusPortLayer");
-     }
+	fn fired(&self, _: usize) {
+	 	debug!("gpio::Client fired for SignbusPortLayer");
+	}
 }
 

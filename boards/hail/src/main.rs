@@ -347,10 +347,10 @@ pub unsafe fn reset_handler() {
 
     // set GPIO driver controlling remaining GPIO pins
     let gpio_pins = static_init!(
-        [&'static sam4l::gpio::GPIOPin; 4],
-        [&sam4l::gpio::PB[14],   // D0
-         &sam4l::gpio::PB[15],   // D1
-         &sam4l::gpio::PB[11],   // D6
+        [&'static sam4l::gpio::GPIOPin; 2],
+        //[&sam4l::gpio::PB[14],   // D0
+        // &sam4l::gpio::PB[15],   // D1
+        [&sam4l::gpio::PB[11],   // D6
          &sam4l::gpio::PB[12]]); // D7
     let gpio = static_init!(
         capsules::gpio::GPIO<'static, sam4l::gpio::GPIOPin>,
@@ -370,11 +370,12 @@ pub unsafe fn reset_handler() {
         capsules::dac::Dac<'static>,
         capsules::dac::Dac::new(&mut sam4l::dac::DAC));
 
-    // signbus port layer
+    // signbus virtual alarm
     let signbus_virtual_alarm = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
         VirtualMuxAlarm::new(mux_alarm));
     
+	// signbus port_layer
 	let port_layer = static_init!(
         capsules::signbus::port_layer::SignbusPortLayer<'static, 
 			VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
@@ -382,15 +383,17 @@ pub unsafe fn reset_handler() {
             &sam4l::i2c::I2C1,
             &mut capsules::signbus::port_layer::I2C_BUFFER,
     //XXX: each of these resources was chosen randomly!
-            &sam4l::gpio::PA[16],
-            &sam4l::gpio::PA[17],
+            &sam4l::gpio::PB[14], // D0
+            &sam4l::gpio::PB[15], // D1
             signbus_virtual_alarm,
-            Some(&sam4l::gpio::PA[18]),
+            Some(&sam4l::gpio::PA[13]),
 		));
     
 	sam4l::i2c::I2C1.set_master_client(port_layer);
     sam4l::i2c::I2C1.set_slave_client(port_layer);
-    //XXX: other clients need to be set here too!
+	signbus_virtual_alarm.set_client(port_layer);
+	sam4l::gpio::PB[14].set_client(port_layer);	
+	
 
     // Signbus IO Interface
     let io_layer = static_init!(
@@ -518,14 +521,23 @@ pub unsafe fn reset_handler() {
 	//io_layer.signbus_io_recv(255);
 
 	// master_write test
+	//io_layer.signbus_io_init(0x20);
+	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
+	
+	// master_write test2
 	io_layer.signbus_io_init(0x20);
 	io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
 
 	// alarm test		
-	// set gpio
-	// port_layer.delay_ms(2);	
-	// clear gpio
+	//port_layer.delay(2);	
 
+	// gpio set/clear test
+	//port_layer.clear();
+	//port_layer.set();
+
+	// gpio enable_interrupt test
+	// port_layer.enable_interrupt();
+	
 	//debug!("Initialization complete. Entering main loop");
     kernel::main(&hail, &mut chip, load_processes(), &hail.ipc);
 }
