@@ -2,6 +2,7 @@
 
 pub const I2C_MAX_LEN: usize = 255;
 pub const HEADER_SIZE: usize = 12;
+pub const I2C_MAX_DATA_LEN: usize = I2C_MAX_LEN - HEADER_SIZE;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -70,9 +71,45 @@ pub struct Packet {
     }
 
     //XXX: need to figure out how to size this buffer right
-    //pub fn unserialize_packet(buf: &[u8]) -> Packet {
-	//Packet{
-	//}
-    //}
+	pub fn unserialize_packet(buf: &'static mut [u8]) -> Packet {
+		// Network Flags
+		let flags: SignbusNetworkFlags = SignbusNetworkFlags {
+	        is_fragment:   	buf[0] == 1, // cannot cast u8 to bool? 
+	        is_encrypted:   buf[1] == 1,
+	        rsv_wire_bit5:  buf[2] == 1,
+	        rsv_wire_bit4:  buf[3] == 1,
+	        version:        buf[4],
+	    };
+	
+	    // Network Header
+	    let header: SignbusNetworkHeader = SignbusNetworkHeader {
+	        flags:              flags,
+	        src:                buf[5],
+	        sequence_number:    (buf[6] as u16) | (buf[7] as u16) << 8,
+	        length:             (buf[8] as u16) | (buf[9] as u16) << 8,
+	        fragment_offset:    (buf[10] as u16) | (buf[11] as u16) << 8,
+	    };
+	
+		//debug!("header.length: {}", header.length);
+		let b = [0; ]			
+
+
+
+		if header.flags.is_fragment {
+	   		// Packet
+	    	Packet {
+	        	header: header,
+	        	data:   &mut buf[12..I2C_MAX_LEN],
+	    	}
+		}
+		else {
+	   		// Packet
+			let end = (header.length - HEADER_SIZE as u16 - header.fragment_offset) as usize;
+	    	Packet {
+	        	header: header,
+	        	data:   &mut buf[12..end],
+	    	}
+		}
+    }
 //}
 

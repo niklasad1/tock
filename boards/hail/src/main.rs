@@ -526,7 +526,7 @@ pub unsafe fn reset_handler() {
 	
 	// master_write test2
 	io_layer.signbus_io_init(0x20);
-	io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
+	io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 255);
 
 	// alarm test		
 	//port_layer.delay(2);	

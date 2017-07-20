@@ -41,7 +41,7 @@ pub trait PortLayerClient {
      fn packet_received(&self, packet: support::Packet, error: support::Error);
 
      // Called when an I2C master write command is complete.
-     fn packet_sent(&self);
+     fn packet_sent(&self, packet: support::Packet, error: isize);
 
      // Called when an I2C slave read has completed.
      fn packet_read_from_slave(&self);
@@ -55,7 +55,7 @@ pub trait PortLayerClient {
 
 pub trait PortLayer {
 	fn init(&self, i2c_address: u8) -> ReturnCode;
-	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, data_len: usize) -> ReturnCode;
+	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, len: usize) -> ReturnCode;
 	fn i2c_slave_listen(&self, max_len: usize) -> ReturnCode;
 	fn i2c_slave_read_setup(&self, buf: &[u8], len: usize) -> ReturnCode;
 	fn mod_out_set(&self) -> ReturnCode;
@@ -124,17 +124,16 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 	}
 
     // Do a write to another I2C device
-	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, data_len: usize) -> ReturnCode {
+	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, len: usize) -> ReturnCode {
 
 		debug!("port_layer_master_write");
 		
 		self.i2c_buffer.take().map(|buffer|{
 			// packet -> buffer
-			support::serialize_packet(packet, data_len, buffer);
+			support::serialize_packet(packet, len-support::HEADER_SIZE, buffer);
 	    	
 			hil::i2c::I2CMaster::enable(self.i2c);
-	    	hil::i2c::I2CMaster::write(self.i2c, i2c_address, buffer, 
-										(data_len+support::HEADER_SIZE) as u8);
+	    	hil::i2c::I2CMaster::write(self.i2c, i2c_address, buffer, len as u8);
 	  	});
 
 		self.master_action.set(support::MasterAction::Write);
@@ -230,7 +229,7 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 /// Handle I2C Master callbacks.
 impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwMasterClient for SignbusPortLayer<'a, A> {
 	fn command_complete(&self, buffer: &'static mut [u8], error: hil::i2c::Error) {
-		debug!("I2CHwMasterClient command_complete for SignbusPortLayer");
+		//debug!("I2CHwMasterClient command_complete for SignbusPortLayer");
 	
         let err: isize = match error {
             hil::i2c::Error::AddressNak => -1,
@@ -242,15 +241,21 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwMasterClient for SignbusPortLaye
         match self.master_action.get() {
             support::MasterAction::Write => {
 				self.i2c_buffer.replace(buffer);
-                self.client.get().map(|client| {
-					client.packet_sent();	
+				
+				self.i2c_buffer.map(|buffer| {
+					let mut packet = support::unserialize_packet(buffer);
+                	self.client.get().map(|client| {
+						client.packet_sent(packet, err);	
+					});
 				});
+				
 			}
 
             support::MasterAction::Read(read_len) => {
 				// TODO: in the future
 			}
 		}
+
 		// Check to see if we were listening as an I2C slave and should re-enable
         // that mode.
         if self.listening.get() {
