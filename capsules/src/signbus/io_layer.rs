@@ -24,6 +24,11 @@ pub struct SignbusIOLayer<'a> {
 	
     this_device_address:	Cell<u8>,
     sequence_number:		Cell<u16>,
+			
+
+	message_sequence_number:	Cell<u8>,
+	message_source_address:     Cell<u16>,		
+	length_received:			Cell<usize>,
 
 	client: Cell<Option<&'static protocol_layer::SignbusProtocolLayer<'static>>>,
 	
@@ -49,13 +54,6 @@ pub trait IOLayerClient {
      fn delay_complete(&self);
 }
 
-pub trait IOLayer {
-	fn signbus_io_init(&self, address: u8) -> ReturnCode;
-	fn signbus_io_send(&self, dest: u8, encrypted: bool, data: &'static mut [u8], len: usize) -> ReturnCode;
-	fn signbus_io_recv(&self, max_len: usize) -> ReturnCode;
-}
-
-
 impl<'a> SignbusIOLayer<'a> {
     pub fn new(port_layer: 	&'a port_layer::PortLayer,
 	       slave_write_buf:	&'static mut [u8],
@@ -64,13 +62,17 @@ impl<'a> SignbusIOLayer<'a> {
 		SignbusIOLayer {
 		    port_layer:		port_layer,
 		    
-			this_device_address:	Cell::new(0),
-		    sequence_number:		Cell::new(0),
-	       	
-			client: 				Cell::new(None),
+			this_device_address:		Cell::new(0),
+		    sequence_number:			Cell::new(0),
 			
-		    slave_write_buf:		TakeCell::new(slave_write_buf),
-		    data_buf:				TakeCell::new(data_buf),
+			message_sequence_number:	Cell::new(0),
+			message_source_address:     Cell::new(0),
+			length_received:			Cell::new(0),
+
+			client: 					Cell::new(None),
+			
+		    slave_write_buf:			TakeCell::new(slave_write_buf),
+		    data_buf:					TakeCell::new(data_buf),
 		}
     }
 
@@ -90,17 +92,14 @@ impl<'a> SignbusIOLayer<'a> {
 		ReturnCode::SUCCESS
 	}
 
-	fn recv(&self, max_len: usize) -> ReturnCode {
-		self.signbus_io_recv(max_len);
+	pub fn recv(&self) -> ReturnCode {
+		self.signbus_io_recv();
 		ReturnCode::SUCCESS	
 	}
-}
-
-impl<'a> IOLayer for SignbusIOLayer<'a> {
 
 	/// Initialization routine to set up the slave address for this device.
     /// MUST be called before any other methods.
-    fn signbus_io_init(&self, address: u8) -> ReturnCode {
+    pub fn signbus_io_init(&self, address: u8) -> ReturnCode {
 		//debug!("io_layer_init");
 
 		self.this_device_address.set(address);
@@ -111,7 +110,7 @@ impl<'a> IOLayer for SignbusIOLayer<'a> {
 
 
     // synchronous send call
-    fn signbus_io_send(&self,
+    pub fn signbus_io_send(&self,
 			   			dest: u8,
 			   			encrypted: bool,
 			   			data: &'static mut [u8],
@@ -183,10 +182,10 @@ impl<'a> IOLayer for SignbusIOLayer<'a> {
 		ReturnCode::SUCCESS
     }
 
-	fn signbus_io_recv(&self, max_len: usize) -> ReturnCode {
+	fn signbus_io_recv(&self) -> ReturnCode {
 		debug!("io_layer_recv");
 		
-		let rc = self.port_layer.i2c_slave_listen(max_len);
+		let rc = self.port_layer.i2c_slave_listen();
 		if rc != ReturnCode::SUCCESS {return rc;}
 
 		// get_message() helper
@@ -196,8 +195,20 @@ impl<'a> IOLayer for SignbusIOLayer<'a> {
 
 
 impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
-	fn packet_received(&self, packet: signbus::support::Packet, error: signbus::support::Error) {
+	fn packet_received(&self, packet: signbus::support::Packet, length: u8, error: signbus::support::Error) {
 		debug!("PortLayerClient packet_received in io_layer");
+
+		if error != support::Error::CommandComplete {
+			// callback protocol_layer
+			self.client.get().map(|client| {
+				client.packet_received(packet, error);	
+			});
+		}
+
+		// Maybe implement sending error message to source
+		
+
+
     }
 
     fn packet_sent(&self, mut packet: support::Packet, error: signbus::support::Error) {

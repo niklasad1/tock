@@ -38,7 +38,7 @@ pub struct SignbusPortLayer<'a, A: hil::time::Alarm+'a> {
 
 pub trait PortLayerClient {
      // Called when a new packet is received over I2C.
-     fn packet_received(&self, packet: support::Packet, error: support::Error);
+     fn packet_received(&self, packet: support::Packet, length: u8, error: support::Error);
 
      // Called when an I2C master write command is complete.
      fn packet_sent(&self, packet: support::Packet, error: support::Error);
@@ -56,7 +56,7 @@ pub trait PortLayerClient {
 pub trait PortLayer {
 	fn init(&self, i2c_address: u8) -> ReturnCode;
 	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, len: usize) -> ReturnCode;
-	fn i2c_slave_listen(&self, max_len: usize) -> ReturnCode;
+	fn i2c_slave_listen(&self) -> ReturnCode;
 	fn i2c_slave_read_setup(&self, buf: &[u8], len: usize) -> ReturnCode;
 	fn mod_out_set(&self) -> ReturnCode;
 	fn mod_out_clear(&self) -> ReturnCode;
@@ -142,7 +142,7 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 
 
      // Listen for messages to this device as a slave.
-	fn i2c_slave_listen(&self, max_len: usize) -> ReturnCode {
+	fn i2c_slave_listen(&self) -> ReturnCode {
 		debug!("port_layer_slave_listen");
 		
 		self.i2c_buffer.take().map(|buffer| {
@@ -267,7 +267,19 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwSlaveClient for SignbusPortLayer
     // Slave received message, write_receive completed
 	fn command_complete(&self, buffer: &'static mut [u8], length: u8, transmission_type: hil::i2c::SlaveTransmissionType) {
 		debug!("I2CHwSlaveClient command_complete for SignbusPortLayer");
-        self.i2c_buffer.replace(buffer);
+        match transmission_type {
+            hil::i2c::SlaveTransmissionType::Write => {
+            	//TODO: in the future
+			}
+
+            hil::i2c::SlaveTransmissionType::Read => {
+				self.client.get().map(move |client| {
+					let packet = support::unserialize_packet(buffer);
+					self.i2c_buffer.replace(buffer);
+					client.packet_received(packet, length, support::Error::CommandComplete);	
+				});
+            }
+        }
      }
 
     fn read_expected(&self) {

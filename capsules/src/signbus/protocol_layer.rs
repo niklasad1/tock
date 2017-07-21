@@ -18,7 +18,7 @@ pub static mut BUFFER1: [u8; 256] = [0; 256];
 pub static mut BUFFER2: [u8; 256] = [1; 256];
 
 pub struct SignbusProtocolLayer<'a> {
-	io_layer: 	&'a io_layer::IOLayer,
+	io_layer: 	&'a io_layer::SignbusIOLayer<'a>,
 	
 
 	client: Cell<Option<&'static app_layer::SignbusAppLayer<'static>>>,
@@ -35,7 +35,7 @@ pub trait ProtocolLayer {
 }
 
 impl<'a> SignbusProtocolLayer<'a> {
-	pub fn new(io_layer: &'a io_layer::IOLayer,
+	pub fn new(io_layer: 	&'a io_layer::SignbusIOLayer,
 				buf0:		&'static mut [u8],
 				buf1: 		&'static mut [u8]) -> SignbusProtocolLayer <'a> {
 		
@@ -53,9 +53,6 @@ impl<'a> SignbusProtocolLayer<'a> {
 		self.client.set(Some(client));
 		ReturnCode::SUCCESS
 	}
-}
-
-impl<'a> ProtocolLayer for SignbusProtocolLayer<'a> {
 
 	fn signbus_protocol_send(&self, dest: u8, data: &'static mut [u8], len: usize) -> ReturnCode {
 		debug!("Signbus_Protocol_send");
