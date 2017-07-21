@@ -13,61 +13,95 @@ use kernel::common::take_cell::{MapCell, TakeCell};
 use kernel::hil;
 
 use signbus;
-use signbus::{support, port_layer};
+use signbus::{support, port_layer, protocol_layer};
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 1024] = [0; 1024];
-pub static mut BUFFER2: [u8; 255] = [4; 255];
+pub static mut BUFFER2: [u8; 512] = [4; 512];
 
-pub struct SignbusIOInterface<'a> {
+pub struct SignbusIOLayer<'a> {
     port_layer:				&'a port_layer::PortLayer,
 	
     this_device_address:	Cell<u8>,
     sequence_number:		Cell<u16>,
 
+	client: Cell<Option<&'static protocol_layer::SignbusProtocolLayer<'static>>>,
 	
-	message_fragmented:		Cell<bool>,
-
-    
 	slave_write_buf:		TakeCell <'static, [u8]>,
     data_buf:				TakeCell <'static, [u8]>,
 }
 
-impl<'a> SignbusIOInterface<'a> {
+
+pub trait IOLayerClient {
+     // Called when a new packet is received over I2C.
+     fn packet_received(&self, packet: support::Packet, error: support::Error);
+
+     // Called when an I2C master write command is complete.
+     fn packet_sent(&self, error: support::Error);
+
+     // Called when an I2C slave read has completed.
+     fn packet_read_from_slave(&self);
+
+     // Called when the mod_in GPIO goes low.
+     fn mod_in_interrupt(&self);
+
+     // Called when a delay_ms has completed.
+     fn delay_complete(&self);
+}
+
+pub trait IOLayer {
+	fn signbus_io_init(&self, address: u8) -> ReturnCode;
+	fn signbus_io_send(&self, dest: u8, encrypted: bool, data: &'static mut [u8], len: usize) -> ReturnCode;
+	fn signbus_io_recv(&self, max_len: usize) -> ReturnCode;
+}
+
+
+impl<'a> SignbusIOLayer<'a> {
     pub fn new(port_layer: 	&'a port_layer::PortLayer,
 	       slave_write_buf:	&'static mut [u8],
-	       data_buf:		&'static mut [u8]) -> SignbusIOInterface <'a> {
+	       data_buf:		&'static mut [u8]) -> SignbusIOLayer <'a> {
 
-	SignbusIOInterface {
-	    port_layer:		port_layer,
-	    
-		this_device_address:	Cell::new(0),
-	    sequence_number:		Cell::new(0),
-		message_fragmented:		Cell::new(false),
-		
-	    slave_write_buf:		TakeCell::new(slave_write_buf),
-	    data_buf:				TakeCell::new(data_buf),
+		SignbusIOLayer {
+		    port_layer:		port_layer,
+		    
+			this_device_address:	Cell::new(0),
+		    sequence_number:		Cell::new(0),
+	       	
+			client: 				Cell::new(None),
+			
+		    slave_write_buf:		TakeCell::new(slave_write_buf),
+		    data_buf:				TakeCell::new(data_buf),
+		}
+    }
+
+	pub fn set_client(&self, client: &'static protocol_layer::SignbusProtocolLayer) -> ReturnCode {
+		self.client.set(Some(client));
+		ReturnCode::SUCCESS
 	}
-    }
+   
+	// testing purposes 
+	pub fn init(&self, address: u8) -> ReturnCode {
+		self.signbus_io_init(address);
+		ReturnCode::SUCCESS
 
+	}
+    pub fn send(&self, dest: u8, encrypted: bool, data: &'static mut [u8], len: usize) -> ReturnCode {
+		self.signbus_io_send(dest, encrypted, data, len);
+		ReturnCode::SUCCESS
+	}
 
-    // Host-to-network short (packages certain data into header)
-    fn htons(&self, a: u16) -> u16 {
-		return ((a as u16 & 0x00FF) << 8) | ((a as u16 & 0xFF00) >> 8);
-    }
+	fn recv(&self, max_len: usize) -> ReturnCode {
+		self.signbus_io_recv(max_len);
+		ReturnCode::SUCCESS	
+	}
+}
 
-    fn get_message(&self,
-		   recv_buf: &'static mut [u8],
-		   encrypted: bool,
-		   src_address: u8) {
+impl<'a> IOLayer for SignbusIOLayer<'a> {
 
-	let mut done: u8 = 0;
-    }
-
-    /// Initialization routine to set up the slave address for this device.
+	/// Initialization routine to set up the slave address for this device.
     /// MUST be called before any other methods.
-    pub fn signbus_io_init(&self, address: u8) -> ReturnCode {
-		debug!("io_layer_init");
+    fn signbus_io_init(&self, address: u8) -> ReturnCode {
+		//debug!("io_layer_init");
 
 		self.this_device_address.set(address);
 		self.port_layer.init(address);
@@ -77,15 +111,14 @@ impl<'a> SignbusIOInterface<'a> {
 
 
     // synchronous send call
-    pub fn signbus_io_send(&self,
+    fn signbus_io_send(&self,
 			   			dest: u8,
 			   			encrypted: bool,
 			   			data: &'static mut [u8],
 			   			len: usize) -> ReturnCode {
-		debug!("Signbus_Interface_send");
+		//debug!("Signbus_Interface_send");
 		
 		self.sequence_number.set(self.sequence_number.get() + 1);
-	
 
 		// Network Flags
 	    let flags: support::SignbusNetworkFlags = support::SignbusNetworkFlags {
@@ -106,7 +139,6 @@ impl<'a> SignbusIOInterface<'a> {
 	    };
 	
 		if header.flags.is_fragment {
-			
 			// Save all data in order to send in multiple packets	
 			self.data_buf.map(|data_buf| {
 				let d = &mut data_buf.as_mut()[0..len];
@@ -115,10 +147,16 @@ impl<'a> SignbusIOInterface<'a> {
             	}
 			});
 
+			// Copy data from slice into sized array to package into packet
+			let mut data_copy: [u8; support::I2C_MAX_DATA_LEN] = [0; support::I2C_MAX_DATA_LEN];   
+            for (i, c) in data[0..support::I2C_MAX_DATA_LEN].iter().enumerate() {
+            	data_copy[i] = *c;
+            }
+
 	    	// Packet
-	    	let mut packet: support::Packet = support::Packet {
+	    	let packet: support::Packet = support::Packet {
 	        	header: header,
-	        	data:   &mut data[0..support::I2C_MAX_DATA_LEN],
+	        	data:   data_copy,
 	    	};
 			
 			let rc = self.port_layer.i2c_master_write(dest, packet, support::I2C_MAX_LEN);	
@@ -126,11 +164,16 @@ impl<'a> SignbusIOInterface<'a> {
 
 		}
 		else {
+			// Copy data from slice into sized array to package into packet
+			let mut data_copy: [u8; support::I2C_MAX_DATA_LEN] = [0; support::I2C_MAX_DATA_LEN];
+            for (i, c) in data[0..len].iter().enumerate() {
+            	data_copy[i] = *c;
+            }
 
 	    	// Packet
-	    	let mut packet: support::Packet = support::Packet {
+	    	let packet: support::Packet = support::Packet {
 	        	header: header,
-	        	data:   &mut data[0..len],
+	        	data:   data_copy,
 	    	};
 			
 			let rc = self.port_layer.i2c_master_write(dest, packet, len + support::HEADER_SIZE);	
@@ -140,8 +183,9 @@ impl<'a> SignbusIOInterface<'a> {
 		ReturnCode::SUCCESS
     }
 
-	pub fn signbus_io_recv(&self, max_len: usize) -> ReturnCode {
-		//debug!("io_layer_recv");
+	fn signbus_io_recv(&self, max_len: usize) -> ReturnCode {
+		debug!("io_layer_recv");
+		
 		let rc = self.port_layer.i2c_slave_listen(max_len);
 		if rc != ReturnCode::SUCCESS {return rc;}
 
@@ -151,14 +195,21 @@ impl<'a> SignbusIOInterface<'a> {
 }
 
 
-impl<'a> signbus::port_layer::PortLayerClient for SignbusIOInterface <'a> {
+impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 	fn packet_received(&self, packet: signbus::support::Packet, error: signbus::support::Error) {
 		debug!("PortLayerClient packet_received in io_layer");
     }
 
-    fn packet_sent(&self, mut packet: support::Packet, error: isize) {
-		debug!("PortLayerClient packet_sent in io_layer");
-		//check error
+    fn packet_sent(&self, mut packet: support::Packet, error: signbus::support::Error) {
+		//debug!("PortLayerClient packet_sent in io_layer");
+		
+		// If error, stop sending and propogate up
+		if error != support::Error::CommandComplete	{
+			// callback protocol_layer
+			self.client.get().map(|client| {
+				client.packet_sent(error);	
+			});
+		}
 
 		if packet.header.flags.is_fragment {
 			// Update sequence number
@@ -176,7 +227,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOInterface <'a> {
 			packet.header.flags.is_fragment = more_packets;
 	
 			if more_packets {
-				
+				//debug!("io_layer more packets");
 				// Copy next frame of data from data_buf into packet	
 				self.data_buf.map(|data_buf| {
 					let d = &mut data_buf.as_mut()[offset..offset+support::I2C_MAX_DATA_LEN];
@@ -188,7 +239,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOInterface <'a> {
 				self.port_layer.i2c_master_write(packet.header.src, packet, support::I2C_MAX_LEN);	
 
 			} else {
-				
+				//debug!("io_layer one more packet");
 				// Copy next frame of data from data_buf into packet	
 				self.data_buf.map(|data_buf| {
 					let d = &mut data_buf.as_mut()[offset..offset+data_left_to_send];
@@ -202,7 +253,9 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOInterface <'a> {
 
 		} else {
 			// callback protocol_layer
-
+			self.client.get().map(|client| {
+				client.packet_sent(error);	
+			});
 		}		
 	
     }

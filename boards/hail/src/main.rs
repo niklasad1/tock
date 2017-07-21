@@ -397,30 +397,31 @@ pub unsafe fn reset_handler() {
 
     // Signbus IO Interface
     let io_layer = static_init!(
-        capsules::signbus::io_layer::SignbusIOInterface<'static>,
-        capsules::signbus::io_layer::SignbusIOInterface::new(port_layer,
+        capsules::signbus::io_layer::SignbusIOLayer<'static>,
+        capsules::signbus::io_layer::SignbusIOLayer::new(port_layer,
               	&mut capsules::signbus::io_layer::BUFFER0,
                 &mut capsules::signbus::io_layer::BUFFER1
      ));
 
     port_layer.set_client(io_layer);
 
-/*
     // Signbus Protocol Layer
-    let signbus_protocol_layer = static_init!(
+    let protocol_layer = static_init!(
         capsules::signbus::protocol_layer::SignbusProtocolLayer<'static>,
-        capsules::signbus::protocol_layer::SignbusProtocolLayer::new(signbus_io_layer,
-                                                                     &mut capsules::signbus::protocol_layer::BUFFER0,
-                                                                     &mut capsules::signbus::protocol_layer::BUFFER1
-                                                                    ));
-
+        capsules::signbus::protocol_layer::SignbusProtocolLayer::new(io_layer,
+        		&mut capsules::signbus::protocol_layer::BUFFER0,
+              	&mut capsules::signbus::protocol_layer::BUFFER1
+    ));
+	
+	io_layer.set_client(protocol_layer);
+/*
     // Signbus App Layer
-    let signbus_app_layer = static_init!(
+    let app_layer = static_init!(
         capsules::signbus::app_layer::SignbusAppLayer<'static>,
         capsules::signbus::app_layer::SignbusAppLayer::new(signbus_protocol_layer,
-                                                           &mut capsules::signbus::app_layer::BUFFER0
-                                                          ));
-    */
+        		&mut capsules::signbus::app_layer::BUFFER0
+    ));
+*/
 
     /*
        let port_layer_virtual_alarm = static_init!(
@@ -517,17 +518,21 @@ pub unsafe fn reset_handler() {
 */
 	
 	// slave_listen test
-	//io_layer.signbus_io_init(0x20);
-	//io_layer.signbus_io_recv(255);
+	//io_layer.init(0x20);
+	//io_layer.recv(255);
 
 	// master_write test
-	//io_layer.signbus_io_init(0x20);
-	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
+	//io_layer.init(0x20);
+	//io_layer.send(0x21, false, &mut io_layer::BUFFER2, 15);
 	
-	// master_write test2
-	io_layer.signbus_io_init(0x20);
-	io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 255);
+	// master_write test2 (2 packets)
+	//io_layer.init(0x20);
+	//io_layer.send(0x21, false, &mut io_layer::BUFFER2, 255);
 
+	// master_write test2 (3 packets)
+	io_layer.init(0x20);
+	io_layer.send(0x21, false, &mut io_layer::BUFFER2, 512);
+	
 	// alarm test		
 	//port_layer.delay(2);	
 
