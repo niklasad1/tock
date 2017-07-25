@@ -19,6 +19,7 @@ pub mod sdcard;
 pub mod si7021;
 pub mod spi;
 pub mod virtual_alarm;
+pub mod virtual_flash;
 pub mod virtual_i2c;
 pub mod virtual_spi;
 pub mod adc;
@@ -42,7 +43,6 @@ pub mod max17205;
 pub mod pca9544a;
 pub mod nonvolatile_to_pages;
 pub mod nonvolatile_storage_driver;
-
 // folders with additional capsules
 pub mod signbus;
-
+pub mod app_flash_driver;

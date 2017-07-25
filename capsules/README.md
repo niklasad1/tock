@@ -77,6 +77,8 @@ These capsules provide a `Driver` interface for common MCU peripherals.
 
 These provide common and better abstractions for userspace.
 
+- **[App Flash](src/app_flash_driver.rs)**: Allow applications to write their
+  own flash.
 - **[Button](src/button.rs)**: Detect button presses.
 - **[Console](src/console.rs)**: UART console support.
 - **[LED](src/led.rs)**: Turn on and off LEDs.
@@ -99,11 +101,12 @@ simultaneously) support for generic sensor interfaces.
 These allow for multiple users of shared hardware resources in the kernel.
 
 - **[Virtual Alarm](src/virtual_alarm.rs)**: Shared alarm resource.
+- **[Virtual Flash](src/virtual_flash.rs)**: Shared flash resource.
 - **[Virtual I2C](src/virtual_i2c.rs)**: Shared I2C and fixed addresses.
 - **[Virtual SPI](src/virtual_spi.rs)**: Shared SPI and fixed chip select pins.
 
 
-### Utilty Capsules
+### Utility Capsules
 
 Other capsules that implement reusable logic.
 
