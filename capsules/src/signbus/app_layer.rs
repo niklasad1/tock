@@ -14,11 +14,10 @@ use kernel::hil;
 use kernel::hil::gpio;
 use kernel::hil::time;
 // Capsules
-use signbus::protocol_layer;
+use signbus::{protocol_layer, support};
 
-pub static mut BUFFER0: [u8; 256] = [0; 256];
-pub static mut BUFFER1: [u8; 256] = [0; 256];
-
+pub static mut BUFFER0: [u8; 1024] = [0; 1024];
+pub static mut BUFFER1: [u8; 1024] = [0; 1024];
 
 pub struct App {
 	callback: Option<Callback>,
@@ -90,8 +89,7 @@ impl<'a> SignbusAppLayer<'a,> {
 		let mut rc = ReturnCode::SUCCESS;
 		let len: usize = 1 + 1 + 1 + message_length;
 		
-		// Concatenate info onto message
-		// TODO: Greather than 256 could panic
+		// Concatenate info with message
 		self.payload.map(|payload|{
 			payload[0] = frame_type as u8;
 			payload[1] = api_type as u8;
@@ -111,4 +109,31 @@ impl<'a> SignbusAppLayer<'a,> {
 		return rc;
 	}
 	
+	pub fn signbus_app_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
+		//debug!("Signbus_App_recv");
+
+		self.protocol_layer.signbus_protocol_recv(buffer)
+	}
+}
+
+impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer <'a> {
+	
+	// Called when a new packet is received over I2C.
+    fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error) {
+		
+
+	}
+
+    // Called when an I2C master write command is complete.
+    fn packet_sent(&self, error: support::Error) {}
+
+    // Called when an I2C slave read has completed.
+    fn packet_read_from_slave(&self) {}
+
+    // Called when the mod_in GPIO goes low.
+    fn mod_in_interrupt(&self) {}
+
+    // Called when a delay_ms has completed.
+    fn delay_complete(&self) {}
+
 }

@@ -17,8 +17,7 @@ use signbus::{support, port_layer, protocol_layer};
 
 pub static mut BUFFER0: [u8; 1024] = [0; 1024];
 pub static mut BUFFER1: [u8; 1024] = [0; 1024];
-pub static mut BUFFER3: [u8; 1024] = [0; 1024];
-pub static mut BUFFER2: [u8; 512] = [4; 512];
+//pub static mut BUFFER2: [u8; 512] = [4; 512];
 
 pub struct SignbusIOLayer<'a> {
     port_layer:				&'a port_layer::PortLayer,

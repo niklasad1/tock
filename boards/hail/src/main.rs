@@ -409,19 +409,18 @@ pub unsafe fn reset_handler() {
     let protocol_layer = static_init!(
         capsules::signbus::protocol_layer::SignbusProtocolLayer<'static>,
         capsules::signbus::protocol_layer::SignbusProtocolLayer::new(io_layer,
-        		&mut capsules::signbus::protocol_layer::BUFFER0,
-              	&mut capsules::signbus::protocol_layer::BUFFER1
+        		//&mut capsules::signbus::protocol_layer::BUFFER0,
+              	//&mut capsules::signbus::protocol_layer::BUFFER1
     ));
 	
 	io_layer.set_client(protocol_layer);
-/*
-    // Signbus App Layer
+    
+	// Signbus App Layer
     let app_layer = static_init!(
         capsules::signbus::app_layer::SignbusAppLayer<'static>,
-        capsules::signbus::app_layer::SignbusAppLayer::new(signbus_protocol_layer,
+        capsules::signbus::app_layer::SignbusAppLayer::new(protocol_layer,
         		&mut capsules::signbus::app_layer::BUFFER0
     ));
-*/
 
     /*
        let port_layer_virtual_alarm = static_init!(
