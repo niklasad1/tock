@@ -60,7 +60,8 @@ impl<'a> SignbusProtocolLayer<'a> {
 	pub fn signbus_protocol_recv(&self) -> ReturnCode {
 		debug!("Signbus_Protocol recv");
 
-		self.io_layer.signbus_io_recv()
+		//self.io_layer.signbus_io_recv()
+		ReturnCode::SUCCESS
 	}
 }
 

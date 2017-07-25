@@ -102,14 +102,14 @@ pub fn unserialize_packet(buf: &[u8]) -> Packet {
         fragment_offset:    (buf[10] as u16) | (buf[11] as u16) << 8,
     };
 
-	//debug!("header.length: {}", header.length);
-	//debug!("header.offset: {}", header.fragment_offset);
+	debug!("header.length: {}", header.length);
+	debug!("header.offset: {}", header.fragment_offset);
 	
 	if header.flags.is_fragment {
 		// Copy data from slice to fixed sized array to package into packet
 		let mut data: [u8; I2C_MAX_DATA_LEN] = [0; I2C_MAX_DATA_LEN]; 
         for (i, c) in buf[HEADER_SIZE..I2C_MAX_LEN].iter().enumerate() {
-        	data[i] = *c;
+        		data[i] = *c;
         }
 
 		// Packet

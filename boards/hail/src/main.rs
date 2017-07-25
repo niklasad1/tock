@@ -518,22 +518,24 @@ pub unsafe fn reset_handler() {
 */
 	
 	// slave_listen test
-	io_layer.init(0x20);
-	io_layer.recv();
+	io_layer.signbus_io_init(0x20);
+	io_layer.signbus_io_recv(&mut io_layer::BUFFER0);
 
 	// slave listen test2 (2 packets)
+	//io_layer.signbus_io_init(0x20);
+	//io_layer.signbus_io_recv(&mut io_layer::BUFFER3);
 
 	// master_write test
-	//io_layer.init(0x20);
-	//io_layer.send(0x21, false, &mut io_layer::BUFFER2, 15);
+	//io_layer.signbus_io_init(0x20);
+	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
 	
 	// master_write test2 (2 packets)
-	//io_layer.init(0x20);
-	//io_layer.send(0x21, false, &mut io_layer::BUFFER2, 255);
+	//io_layer.signbus_io_init(0x20);
+	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 255);
 
 	// master_write test2 (3 packets)
-	//io_layer.init(0x20);
-	//io_layer.send(0x21, false, &mut io_layer::BUFFER2, 512);
+	//io_layer.signbus_io_init(0x20);
+	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 512);
 	
 	// alarm test		
 	//port_layer.delay(2);	

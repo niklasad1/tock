@@ -17,6 +17,7 @@ use signbus::{support, port_layer, protocol_layer};
 
 pub static mut BUFFER0: [u8; 1024] = [0; 1024];
 pub static mut BUFFER1: [u8; 1024] = [0; 1024];
+pub static mut BUFFER3: [u8; 1024] = [0; 1024];
 pub static mut BUFFER2: [u8; 512] = [4; 512];
 
 pub struct SignbusIOLayer<'a> {
@@ -94,7 +95,7 @@ impl<'a> SignbusIOLayer<'a> {
 
 	/// Synchronous send call
     pub fn signbus_io_send(&self, dest: u8, encrypted: bool, data: &'static mut [u8], len: usize) -> ReturnCode {
-		//debug!("Signbus_Interface_send");
+		debug!("Signbus_Interface_send");
 		
 		self.sequence_number.set(self.sequence_number.get() + 1);
 
@@ -161,7 +162,7 @@ impl<'a> SignbusIOLayer<'a> {
 		ReturnCode::SUCCESS
     }
 
-	fn signbus_io_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
+	pub fn signbus_io_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
 		debug!("io_layer_recv");
 	
 		self.recv_buf.replace(buffer);
@@ -198,6 +199,12 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 		let more_packets = packet.header.flags.is_fragment;
 		let offset 	= packet.header.fragment_offset as usize;
 		let remainder = packet.header.length as usize-support::HEADER_SIZE-packet.header.fragment_offset as usize;
+
+		//debug!("src: {}", src);
+		//debug!("offset: {}", offset);
+		//debug!("more_packets: {}", more_packets);
+		//debug!("remainder: {}", remainder);
+
 
 		// First packet
 		if self.length_received.get() == 0 {
@@ -240,15 +247,17 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 				}
 			});
 			self.length_received.set(self.length_received.get() + remainder);
-			
 			// sanity check
 			if self.length_received.get() + support::HEADER_SIZE == packet.header.length as usize {
-				debug!("this should happen");
+				//debug!("this should happen");
 			}
 			
 			// Callback protocol_layer 
 			self.client.get().map(|client| {
 				self.recv_buf.take().map(|recv_buf| {
+					debug!("{}", recv_buf[5]);
+					debug!("{}", self.length_received.get());
+					
 					client.packet_received(recv_buf, self.length_received.get(), error);	
 				});
 			});
@@ -308,6 +317,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 		} else {
 			// Callback protocol_layer
 			self.client.get().map(|client| {
+				debug!("done sending");
 				client.packet_sent(error);	
 			});
 		}		
