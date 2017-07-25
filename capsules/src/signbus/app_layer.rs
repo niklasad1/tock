@@ -61,13 +61,13 @@ pub enum SignbusApiType {
 }
 
 pub struct SignbusAppLayer<'a> {
-	protocol_layer: 	&'a protocol_layer::ProtocolLayer,
+	protocol_layer: 	&'a protocol_layer::SignbusProtocolLayer<'a>,
 	payload:					TakeCell <'static, [u8]>,
     app: 						MapCell<App>,
 }
 
 impl<'a> SignbusAppLayer<'a,> {
-	pub fn new(protocol_layer: &'a protocol_layer::ProtocolLayer,
+	pub fn new(protocol_layer: &'a protocol_layer::SignbusProtocolLayer,
 				payload: &'static mut [u8]) -> SignbusAppLayer <'a> {
 		
 		SignbusAppLayer {

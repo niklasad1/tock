@@ -20,8 +20,9 @@ pub enum MasterAction {
 
 /// Signbus Packet 
 #[repr(C, packed)]
+#[derive(Copy)]
 pub struct SignbusNetworkFlags {
-    pub is_fragment:	bool,
+    pub is_fragment:	bool, // full message contained multiple packets
     pub is_encrypted:	bool,
     pub rsv_wire_bit5:	bool,
     pub rsv_wire_bit4:	bool,
@@ -29,18 +30,30 @@ pub struct SignbusNetworkFlags {
 }
 
 #[repr(C, packed)]
+#[derive(Copy)]
 pub struct SignbusNetworkHeader {
     pub flags:				SignbusNetworkFlags,
-    pub src:				u8,
-    pub sequence_number:	u16,
-    pub length:				u16,
-    pub fragment_offset:	u16,
+    pub src:				u8,  // address of message
+    pub sequence_number:	u16, // specific to message not packet 
+    pub length:				u16, // data length + header_size
+    pub fragment_offset:	u16, // offset of data
 }
 
 #[repr(C, packed)]
+#[derive(Copy)]
 pub struct Packet {
 	pub header: SignbusNetworkHeader,
 	pub data: [u8; I2C_MAX_DATA_LEN],
+}
+
+impl Clone for Packet {
+    fn clone(&self) -> Packet { *self }
+}
+impl Clone for SignbusNetworkHeader {
+    fn clone(&self) -> SignbusNetworkHeader { *self }
+}
+impl Clone for SignbusNetworkFlags {
+    fn clone(&self) -> SignbusNetworkFlags { *self }
 }
 
 // packet -> [u8]

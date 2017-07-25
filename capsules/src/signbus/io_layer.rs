@@ -15,7 +15,7 @@ use kernel::hil;
 use signbus;
 use signbus::{support, port_layer, protocol_layer};
 
-pub static mut BUFFER0: [u8; 256] = [0; 256];
+pub static mut BUFFER0: [u8; 1024] = [0; 1024];
 pub static mut BUFFER1: [u8; 1024] = [0; 1024];
 pub static mut BUFFER2: [u8; 512] = [4; 512];
 
@@ -26,20 +26,19 @@ pub struct SignbusIOLayer<'a> {
     sequence_number:		Cell<u16>,
 			
 
-	message_sequence_number:	Cell<u8>,
-	message_source_address:     Cell<u16>,		
-	length_received:			Cell<usize>,
+	message_seq_no:			Cell<u16>,
+	message_src:     		Cell<u8>,		
+	length_received:		Cell<usize>,
 
 	client: Cell<Option<&'static protocol_layer::SignbusProtocolLayer<'static>>>,
 	
-	slave_write_buf:		TakeCell <'static, [u8]>,
+	recv_buf:				TakeCell <'static, [u8]>,
     data_buf:				TakeCell <'static, [u8]>,
 }
 
-
 pub trait IOLayerClient {
      // Called when a new packet is received over I2C.
-     fn packet_received(&self, packet: support::Packet, error: support::Error);
+     fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error);
 
      // Called when an I2C master write command is complete.
      fn packet_sent(&self, error: support::Error);
@@ -56,7 +55,7 @@ pub trait IOLayerClient {
 
 impl<'a> SignbusIOLayer<'a> {
     pub fn new(port_layer: 	&'a port_layer::PortLayer,
-	       slave_write_buf:	&'static mut [u8],
+	       recv_buf:	&'static mut [u8],
 	       data_buf:		&'static mut [u8]) -> SignbusIOLayer <'a> {
 
 		SignbusIOLayer {
@@ -65,13 +64,13 @@ impl<'a> SignbusIOLayer<'a> {
 			this_device_address:		Cell::new(0),
 		    sequence_number:			Cell::new(0),
 			
-			message_sequence_number:	Cell::new(0),
-			message_source_address:     Cell::new(0),
+			message_seq_no:				Cell::new(0),
+			message_src:     			Cell::new(0),
 			length_received:			Cell::new(0),
 
 			client: 					Cell::new(None),
 			
-		    slave_write_buf:			TakeCell::new(slave_write_buf),
+		    recv_buf:					TakeCell::new(recv_buf),
 		    data_buf:					TakeCell::new(data_buf),
 		}
     }
@@ -81,22 +80,6 @@ impl<'a> SignbusIOLayer<'a> {
 		ReturnCode::SUCCESS
 	}
    
-	// testing purposes 
-	pub fn init(&self, address: u8) -> ReturnCode {
-		self.signbus_io_init(address);
-		ReturnCode::SUCCESS
-
-	}
-    pub fn send(&self, dest: u8, encrypted: bool, data: &'static mut [u8], len: usize) -> ReturnCode {
-		self.signbus_io_send(dest, encrypted, data, len);
-		ReturnCode::SUCCESS
-	}
-
-	pub fn recv(&self) -> ReturnCode {
-		self.signbus_io_recv();
-		ReturnCode::SUCCESS	
-	}
-
 	/// Initialization routine to set up the slave address for this device.
     /// MUST be called before any other methods.
     pub fn signbus_io_init(&self, address: u8) -> ReturnCode {
@@ -109,12 +92,8 @@ impl<'a> SignbusIOLayer<'a> {
     }
 
 
-    // synchronous send call
-    pub fn signbus_io_send(&self,
-			   			dest: u8,
-			   			encrypted: bool,
-			   			data: &'static mut [u8],
-			   			len: usize) -> ReturnCode {
+	/// Synchronous send call
+    pub fn signbus_io_send(&self, dest: u8, encrypted: bool, data: &'static mut [u8], len: usize) -> ReturnCode {
 		//debug!("Signbus_Interface_send");
 		
 		self.sequence_number.set(self.sequence_number.get() + 1);
@@ -182,52 +161,118 @@ impl<'a> SignbusIOLayer<'a> {
 		ReturnCode::SUCCESS
     }
 
-	fn signbus_io_recv(&self) -> ReturnCode {
+	fn signbus_io_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
 		debug!("io_layer_recv");
-		
+	
+		self.recv_buf.replace(buffer);
+	
 		let rc = self.port_layer.i2c_slave_listen();
 		if rc != ReturnCode::SUCCESS {return rc;}
 
-		// get_message() helper
 		ReturnCode::SUCCESS
     }
 }
 
 
 impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
-	fn packet_received(&self, packet: signbus::support::Packet, length: u8, error: signbus::support::Error) {
+	fn packet_received(&self, packet: support::Packet, length: u8, error: support::Error) {
 		debug!("PortLayerClient packet_received in io_layer");
 
+		// Error checking
 		if error != support::Error::CommandComplete {
-			// callback protocol_layer
+			// Callback protocol_layer
 			self.client.get().map(|client| {
-				client.packet_received(packet, error);	
+				self.recv_buf.take().map(|recv_buf| {
+					client.packet_received(recv_buf, self.length_received.get(), error);	
+				});
 			});
+			// Reset
+			self.length_received.set(0);
+			return
+			// future: implement sending error message to source
+		}
+		
+		// Record needed packet data
+		let seq_no 	= packet.header.sequence_number;
+		let src 	= packet.header.src;
+		let more_packets = packet.header.flags.is_fragment;
+		let offset 	= packet.header.fragment_offset as usize;
+		let remainder = packet.header.length as usize-support::HEADER_SIZE-packet.header.fragment_offset as usize;
+
+		// First packet
+		if self.length_received.get() == 0 {
+			// Save src and seq_no
+			self.message_seq_no.set(seq_no);	
+			self.message_src.set(src);
+		}
+		// Subsequent packets
+		else {
+			// If new src, drop current packet	
+			if self.message_seq_no.get() != seq_no || self.message_src.get() != src {
+				// Save new src and seq_no
+				self.message_seq_no.set(seq_no);				
+				self.message_src.set(src);				
+				
+				// Reset
+				self.length_received.set(0);
+			}
+   		}
+
+	
+		// More packets	
+		if more_packets == true {
+			// Copy data and update length_received
+			self.recv_buf.map(|recv_buf| {
+				let d = &mut recv_buf.as_mut()[offset..offset+support::I2C_MAX_DATA_LEN];
+				for (i, c) in packet.data[0..support::I2C_MAX_DATA_LEN].iter().enumerate() {
+        			d[i] = *c;
+				}
+			});
+			self.length_received.set(self.length_received.get() + support::I2C_MAX_DATA_LEN);
+		} 	
+		// Last packet
+		else {
+			// Copy data and update length_received
+			self.recv_buf.map(|recv_buf| {
+				let d = &mut recv_buf.as_mut()[offset..offset+remainder];
+				for (i, c) in packet.data[0..remainder].iter().enumerate() {
+        			d[i] = *c;
+				}
+			});
+			self.length_received.set(self.length_received.get() + remainder);
+			
+			// sanity check
+			if self.length_received.get() + support::HEADER_SIZE == packet.header.length as usize {
+				debug!("this should happen");
+			}
+			
+			// Callback protocol_layer 
+			self.client.get().map(|client| {
+				self.recv_buf.take().map(|recv_buf| {
+					client.packet_received(recv_buf, self.length_received.get(), error);	
+				});
+			});
+
+			// Reset	
+			self.length_received.set(0);
 		}
 
-		// Maybe implement sending error message to source
+	}
 		
 
-
-    }
 
     fn packet_sent(&self, mut packet: support::Packet, error: signbus::support::Error) {
 		//debug!("PortLayerClient packet_sent in io_layer");
 		
 		// If error, stop sending and propogate up
 		if error != support::Error::CommandComplete	{
-			// callback protocol_layer
+			// Callback protocol_layer
 			self.client.get().map(|client| {
 				client.packet_sent(error);	
 			});
 		}
 
 		if packet.header.flags.is_fragment {
-			// Update sequence number
-			let seq_no = self.sequence_number.get() + 1;
-			packet.header.sequence_number = seq_no;
-			self.sequence_number.set(seq_no);
-	
 			// Update fragment offset
 			let offset = support::I2C_MAX_DATA_LEN + packet.header.fragment_offset as usize; 
 			packet.header.fragment_offset = offset as u16;
@@ -238,7 +283,6 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 			packet.header.flags.is_fragment = more_packets;
 	
 			if more_packets {
-				//debug!("io_layer more packets");
 				// Copy next frame of data from data_buf into packet	
 				self.data_buf.map(|data_buf| {
 					let d = &mut data_buf.as_mut()[offset..offset+support::I2C_MAX_DATA_LEN];
@@ -250,7 +294,6 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 				self.port_layer.i2c_master_write(packet.header.src, packet, support::I2C_MAX_LEN);	
 
 			} else {
-				//debug!("io_layer one more packet");
 				// Copy next frame of data from data_buf into packet	
 				self.data_buf.map(|data_buf| {
 					let d = &mut data_buf.as_mut()[offset..offset+data_left_to_send];
@@ -263,7 +306,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 			}
 
 		} else {
-			// callback protocol_layer
+			// Callback protocol_layer
 			self.client.get().map(|client| {
 				client.packet_sent(error);	
 			});

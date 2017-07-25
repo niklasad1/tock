@@ -27,13 +27,6 @@ pub struct SignbusProtocolLayer<'a> {
 	buf1:					TakeCell <'static, [u8]>,
 }
 
-//pub trait ProtocolLayerClient {}
-
-pub trait ProtocolLayer {
-	//fn signbus_protocol_init(&self, address: u8) -> ReturnCode;
-	fn signbus_protocol_send(&self, dest: u8, data: &'static mut [u8], len: usize) -> ReturnCode;
-}
-
 impl<'a> SignbusProtocolLayer<'a> {
 	pub fn new(io_layer: 	&'a io_layer::SignbusIOLayer,
 				buf0:		&'static mut [u8],
@@ -54,8 +47,8 @@ impl<'a> SignbusProtocolLayer<'a> {
 		ReturnCode::SUCCESS
 	}
 
-	fn signbus_protocol_send(&self, dest: u8, data: &'static mut [u8], len: usize) -> ReturnCode {
-		debug!("Signbus_Protocol_send");
+	pub fn signbus_protocol_send(&self, dest: u8, data: &'static mut [u8], len: usize) -> ReturnCode {
+		debug!("Signbus_Protocol send");
 		
 		// TODO: encryption not availabe in Rust
 		let encrypted: bool = false;
@@ -63,11 +56,17 @@ impl<'a> SignbusProtocolLayer<'a> {
 		// Send to io_interface
 		self.io_layer.signbus_io_send(dest, encrypted, data, len)
 	}
+	
+	pub fn signbus_protocol_recv(&self) -> ReturnCode {
+		debug!("Signbus_Protocol recv");
+
+		self.io_layer.signbus_io_recv()
+	}
 }
 
 impl<'a> io_layer::IOLayerClient for SignbusProtocolLayer <'a> {
      // Called when a new packet is received over I2C.
-     fn packet_received(&self, packet: support::Packet, error: support::Error) {}
+     fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error) {}
 
      // Called when an I2C master write command is complete.
      fn packet_sent(&self, error: support::Error) {}
