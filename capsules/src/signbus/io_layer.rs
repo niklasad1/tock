@@ -47,10 +47,10 @@ pub trait IOLayerClient {
      fn packet_read_from_slave(&self);
 
      // Called when the mod_in GPIO goes low.
-     fn mod_in_interrupt(&self);
+     // fn mod_in_interrupt(&self);
 
      // Called when a delay_ms has completed.
-     fn delay_complete(&self);
+     // fn delay_complete(&self);
 }
 
 impl<'a> SignbusIOLayer<'a> {
@@ -327,12 +327,12 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 		debug!("PortLayerClient packet_read_from_slave in io_layer");
     }
 
-    fn mod_in_interrupt(&self) {
-		debug!("PortLayerClient mod_in_interrupt in io_layer");
-    }
+    //fn mod_in_interrupt(&self) {
+	//	debug!("PortLayerClient mod_in_interrupt in io_layer");
+    //}
 
-    fn delay_complete(&self) {
-		debug!("PortLayerClient delay_complete in io_layer");
-    }
+    //fn delay_complete(&self) {
+	//	debug!("PortLayerClient delay_complete in io_layer");
+    //}
 }
 

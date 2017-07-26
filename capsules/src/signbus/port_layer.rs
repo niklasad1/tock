@@ -13,7 +13,7 @@ use kernel::hil::time::Frequency;
 use kernel::hil::gpio;
 use kernel::hil::gpio::{Pin, PinCtl, InputMode, InterruptMode};
 use signbus;
-use signbus::{io_layer, support};
+use signbus::{io_layer, support, test_signbus_init};
 
 /// Buffer to use for I2C messages. Messages are at most 255 bytes in length.
 pub static mut I2C_BUFFER: [u8; 255] = [0; 255];
@@ -29,8 +29,9 @@ pub struct SignbusPortLayer<'a, A: hil::time::Alarm+'a> {
 	alarm: &'a A,
 
 	debug_led: Cell<Option<&'a hil::gpio::Pin>>,
-
-	client: Cell<Option<&'static io_layer::SignbusIOLayer<'static>>>,
+	
+	init_client: Cell<Option<&'static test_signbus_init::SignbusInitialization<'static>>>,
+	io_client: Cell<Option<&'static io_layer::SignbusIOLayer<'static>>>,
 
 	listening:		Cell<bool>,
 	master_action:	Cell<support::MasterAction>,
@@ -47,10 +48,20 @@ pub trait PortLayerClient {
      fn packet_read_from_slave(&self);
 
      // Called when the mod_in GPIO goes low.
+     // fn mod_in_interrupt(&self);
+
+     // Called when a delay_ms has completed.
+     // fn delay_complete(&self);
+}
+
+pub trait PortLayerClient2 {
+
+     // Called when the mod_in GPIO goes low.
      fn mod_in_interrupt(&self);
 
      // Called when a delay_ms has completed.
      fn delay_complete(&self);
+
 }
 
 pub trait PortLayer {
@@ -60,7 +71,7 @@ pub trait PortLayer {
 	fn i2c_slave_read_setup(&self, buf: &[u8], len: usize) -> ReturnCode;
 	fn mod_out_set(&self) -> ReturnCode;
 	fn mod_out_clear(&self) -> ReturnCode;
-	fn mod_in_read(&self) -> ReturnCode;
+	fn mod_in_read(&self) -> usize;
 	fn mod_in_enable_interrupt(&self) -> ReturnCode;
 	fn mod_in_disable_interrupt(&self) -> ReturnCode;
 	fn delay_ms(&self, time: u32) -> ReturnCode;
@@ -83,14 +94,20 @@ impl<'a, A: hil::time::Alarm+'a> SignbusPortLayer<'a, A> {
 	       	mod_out_pin: mod_out_pin,
 	       	alarm: alarm,
 	       	debug_led: Cell::new(debug_led),
-	       	client: Cell::new(None),
+			init_client: Cell::new(None),
+	       	io_client: Cell::new(None),
 			listening: Cell::new(false),
 			master_action:	Cell::new(support::MasterAction::Write),
 		}
     }
 	
-	pub fn set_client(&self, client: &'static io_layer::SignbusIOLayer) -> ReturnCode {
-		self.client.set(Some(client));
+	pub fn set_io_client(&self, client: &'static io_layer::SignbusIOLayer) -> ReturnCode {
+		self.io_client.set(Some(client));
+		ReturnCode::SUCCESS
+	}
+	
+	pub fn set_init_client(&self, client: &'static test_signbus_init::SignbusInitialization) -> ReturnCode {
+		self.init_client.set(Some(client));
 		ReturnCode::SUCCESS
 	}
 
@@ -114,7 +131,6 @@ impl<'a, A: hil::time::Alarm+'a> SignbusPortLayer<'a, A> {
 
 impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 	fn init(&self, i2c_address: u8) -> ReturnCode {
-		//debug!("port_layer_init");
 		
 		if i2c_address > 0x7f {
 			return ReturnCode::EINVAL;
@@ -125,13 +141,11 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 
     // Do a write to another I2C device
 	fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, len: usize) -> ReturnCode {
-
 		
 		self.i2c_buffer.take().map(|buffer| {
 			// packet -> buffer
 			support::serialize_packet(packet, len-support::HEADER_SIZE, buffer);
 	    	
-			//debug!("port_layer_master_write");
 			hil::i2c::I2CMaster::enable(self.i2c);
 	    	hil::i2c::I2CMaster::write(self.i2c, i2c_address, buffer, len as u8);
 	  	});
@@ -141,9 +155,8 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
      }
 
 
-     // Listen for messages to this device as a slave.
+    // Listen for messages to this device as a slave.
 	fn i2c_slave_listen(&self) -> ReturnCode {
-		//debug!("port_layer_slave_listen");
 		
 		self.i2c_buffer.take().map(|buffer| {
 	    	hil::i2c::I2CSlave::write_receive(self.i2c, buffer, 255);
@@ -158,69 +171,62 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 	}
 
 	fn i2c_slave_read_setup(&self, buf: &[u8], len: usize) -> ReturnCode {
-	/*
-		self.slave_tx_buffer.take().map(|buffer| {
-			hil::i2c::I2CSlave::read_send(self.i2c, buffer, len as u8);
-	  	});
-
-	  	self.state.set(State::MasterRead);
-	  	return ReturnCode::SUCCESS;
-	*/
+		
+		// TODO: in the future	
+		// self.master_action.set(support::MasterAction::Read(len as u8));
 		ReturnCode::SUCCESS
 	}
 
 	fn mod_out_set(&self) -> ReturnCode {
- 		debug!("port_layer_mod_out_set");
 		self.mod_out_pin.make_output();
 		self.mod_out_pin.set();
 		ReturnCode::SUCCESS
 	}
 
 	fn mod_out_clear(&self) -> ReturnCode {
- 		debug!("port_layer_mod_out_clear");
 		self.mod_out_pin.make_output();
 		self.mod_out_pin.clear();
  		ReturnCode::SUCCESS
 	}
 
-	fn mod_in_read(&self) -> ReturnCode {
- 		debug!("port_layer_mod_in_read");
+	fn mod_in_read(&self) -> usize {
 		let pin_state = self.mod_in_pin.read();
-		ReturnCode::SuccessWithValue {value: pin_state as usize}
+		//ReturnCode::SuccessWithValue {value: pin_state as usize}
+		return pin_state as usize;
 	}
 
 	fn mod_in_enable_interrupt(&self) -> ReturnCode {
-		debug!("port_layer_mod_in_enable_interupt");
- 			
 		self.mod_in_pin.make_input();	
 		self.mod_in_pin.enable_interrupt(0, gpio::InterruptMode::FallingEdge);
-
 		ReturnCode::SUCCESS
 	}
 
 	fn mod_in_disable_interrupt(&self) -> ReturnCode {	
- 		debug!("port_layer_mod_in_disable_interupt");
-
         self.mod_in_pin.disable_interrupt();
         self.mod_in_pin.disable();
 		ReturnCode::SUCCESS
 	}
 
 	fn delay_ms(&self, time: u32) -> ReturnCode {
-		debug!("port_layer_delay: {}", time);
-		
 		let interval = time * <A::Frequency>::frequency() / 1000;
 		let tics = self.alarm.now().wrapping_add(interval);
 		self.alarm.set_alarm(tics);
-		
 		ReturnCode::SUCCESS	
 	}
 
 	fn debug_led_on(&self) -> ReturnCode {
+		self.debug_led.get().map(|led| {
+			led.make_output();
+			led.set();
+		});
  		ReturnCode::SUCCESS
 	}
 
 	fn debug_led_off(&self) -> ReturnCode {
+		self.debug_led.get().map(|led| {
+			led.make_output();
+			led.clear();
+		});
  		ReturnCode::SUCCESS
 	}
 }
@@ -228,7 +234,6 @@ impl<'a, A: hil::time::Alarm+'a> PortLayer for SignbusPortLayer<'a, A> {
 /// Handle I2C Master callbacks.
 impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwMasterClient for SignbusPortLayer<'a, A> {
 	fn command_complete(&self, buffer: &'static mut [u8], error: hil::i2c::Error) {
-		//debug!("I2CHwMasterClient command_complete for SignbusPortLayer");
 	
         let err: support::Error = match error {										// userland error code
             hil::i2c::Error::AddressNak => support::Error::AddressNak, 				// -1
@@ -240,10 +245,10 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwMasterClient for SignbusPortLaye
         match self.master_action.get() {
             support::MasterAction::Write => {
                	
-				self.client.get().map(move |client| {
+				self.io_client.get().map(move |io_client| {
 					let packet = support::unserialize_packet(buffer);
 					self.i2c_buffer.replace(buffer);
-					client.packet_sent(packet, err);	
+					io_client.packet_sent(packet, err);	
 				});
 				
 			}
@@ -253,8 +258,7 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwMasterClient for SignbusPortLaye
 			}
 		}
 
-		// Check to see if we were listening as an I2C slave and should re-enable
-        // that mode.
+		// Check to see if we were listening as an I2C slave and should re-enable that mode
         if self.listening.get() {
             hil::i2c::I2CSlave::enable(self.i2c);
             hil::i2c::I2CSlave::listen(self.i2c);
@@ -266,20 +270,17 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwMasterClient for SignbusPortLaye
 impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwSlaveClient for SignbusPortLayer<'a, A> {
     // Slave received message, write_receive completed
 	fn command_complete(&self, buffer: &'static mut [u8], length: u8, transmission_type: hil::i2c::SlaveTransmissionType) {
-		//debug!("I2CHwSlaveClient command_complete for SignbusPortLayer");
-        
-		//debug!("{:?}", transmission_type);
-
+		
 		match transmission_type {
             hil::i2c::SlaveTransmissionType::Read => {
             	//TODO: in the future
 			}
 
             hil::i2c::SlaveTransmissionType::Write => {
-				self.client.get().map(move |client| {
+				self.io_client.get().map(move |io_client| {
 					let packet = support::unserialize_packet(buffer);
 					self.i2c_buffer.replace(buffer);
-					client.packet_received(packet, length, support::Error::CommandComplete);	
+					io_client.packet_received(packet, length, support::Error::CommandComplete);	
 				});
             }
         }
@@ -291,8 +292,6 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwSlaveClient for SignbusPortLayer
 
 	// Slave received message, but does not have buffer.
 	fn write_expected(&self) {
-		//debug!("I2CHwSlaveClient write_expected for SignbusPortLayer");
-        
 		self.i2c_buffer.take().map(|buffer| { 
 			hil::i2c::I2CSlave::write_receive(self.i2c, buffer, 255); 
 		});
@@ -303,6 +302,13 @@ impl<'a, A: hil::time::Alarm+'a> hil::i2c::I2CHwSlaveClient for SignbusPortLayer
 impl<'a, A: hil::time::Alarm+'a> hil::time::Client for SignbusPortLayer<'a, A> {
 	fn fired(&self) {
 	 	debug!("time::Client fired for SignbusPortLayer");
+
+		self.init_client.get().map(|init_client|{
+			
+			init_client.delay_complete();
+		
+		});
+
     }
 }
 
@@ -310,6 +316,13 @@ impl<'a, A: hil::time::Alarm+'a> hil::time::Client for SignbusPortLayer<'a, A> {
 impl<'a, A: hil::time::Alarm+'a> hil::gpio::Client for SignbusPortLayer<'a, A> {
 	fn fired(&self, _: usize) {
 	 	debug!("gpio::Client fired for SignbusPortLayer");
+
+		self.init_client.get().map(|init_client|{
+			
+			init_client.mod_in_interrupt();
+		
+		});
+
 	}
 }
 

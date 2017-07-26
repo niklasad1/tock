@@ -361,8 +361,8 @@ pub unsafe fn reset_handler() {
             &sam4l::i2c::I2C1,
             &mut capsules::signbus::port_layer::I2C_BUFFER,
     //XXX: each of these resources was chosen randomly!
-            &sam4l::gpio::PB[14], // D0
-            &sam4l::gpio::PB[15], // D1
+            &sam4l::gpio::PB[14], // D0 mod_in
+            &sam4l::gpio::PB[15], // D1 mod_out
             signbus_virtual_alarm,
             Some(&sam4l::gpio::PA[13]),
 		));
@@ -381,7 +381,7 @@ pub unsafe fn reset_handler() {
                 &mut capsules::signbus::io_layer::BUFFER1
      ));
 
-    port_layer.set_client(io_layer);
+    port_layer.set_io_client(io_layer);
 
     // Signbus Protocol Layer
     let protocol_layer = static_init!(
@@ -494,8 +494,8 @@ pub unsafe fn reset_handler() {
 */
 	
 	// slave_listen test
-	io_layer.signbus_io_init(0x20);
-	io_layer.signbus_io_recv(&mut io_layer::BUFFER0);
+	//io_layer.signbus_io_init(0x20);
+	//io_layer.signbus_io_recv(&mut io_layer::BUFFER0);
 
 	// slave listen test2 (2 packets)
 	//io_layer.signbus_io_init(0x20);
@@ -522,6 +522,21 @@ pub unsafe fn reset_handler() {
 
 	// gpio enable_interrupt test
 	// port_layer.enable_interrupt();
+
+	// initialization test
+	
+    let signbus = static_init!(
+        capsules::signbus::test_signbus_init::SignbusInitialization<'static>,
+        capsules::signbus::test_signbus_init::SignbusInitialization::new(
+				app_layer,
+				protocol_layer,
+				io_layer,
+				port_layer,
+              	&mut capsules::signbus::test_signbus_init::BUFFER0,
+     ));
+	
+	port_layer.set_init_client(signbus);	
+	signbus.signpost_initialization_module_init(0x32);
 	
 	//debug!("Initialization complete. Entering main loop");
     extern "C" {

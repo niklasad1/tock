@@ -16,8 +16,8 @@ use kernel::hil::time;
 // Capsules
 use signbus::{protocol_layer, support};
 
-pub static mut BUFFER0: [u8; 1024] = [0; 1024];
-pub static mut BUFFER1: [u8; 1024] = [0; 1024];
+pub static mut BUFFER0: [u8; 512] = [0; 512];
+//pub static mut BUFFER1: [u8; 1024] = [0; 1024];
 
 pub struct App {
 	callback: Option<Callback>,
@@ -130,9 +130,9 @@ impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer <'a> {
     fn packet_read_from_slave(&self) {}
 
     // Called when the mod_in GPIO goes low.
-    fn mod_in_interrupt(&self) {}
+    // fn mod_in_interrupt(&self) {}
 
     // Called when a delay_ms has completed.
-    fn delay_complete(&self) {}
+    // fn delay_complete(&self) {}
 
 }

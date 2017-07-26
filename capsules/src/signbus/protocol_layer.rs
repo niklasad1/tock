@@ -27,10 +27,10 @@ pub trait ProtocolLayerClient {
      fn packet_read_from_slave(&self);
 
      // Called when the mod_in GPIO goes low.
-     fn mod_in_interrupt(&self);
+     // fn mod_in_interrupt(&self);
 
      // Called when a delay_ms has completed.
-     fn delay_complete(&self);
+     // fn delay_complete(&self);
 }
 
 pub struct SignbusProtocolLayer<'a> {
@@ -105,8 +105,8 @@ impl<'a> io_layer::IOLayerClient for SignbusProtocolLayer <'a> {
     fn packet_read_from_slave(&self) {}
 
     // Called when the mod_in GPIO goes low.
-    fn mod_in_interrupt(&self) {}
+    //fn mod_in_interrupt(&self) {}
 
     // Called when a delay_ms has completed.
-    fn delay_complete(&self) {}
+    //fn delay_complete(&self) {}
 }
