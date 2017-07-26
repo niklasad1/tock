@@ -121,7 +121,6 @@ impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer <'a> {
 	// Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error) {
 		
-
 	}
 
     // Called when an I2C master write command is complete.

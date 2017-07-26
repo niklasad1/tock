@@ -56,6 +56,10 @@ impl Clone for SignbusNetworkFlags {
     fn clone(&self) -> SignbusNetworkFlags { *self }
 }
 
+pub fn htons(a: u16) -> u16 {
+	(((a & 0x00FF) << 8) | ((a & 0xFF00) >> 8))
+}
+
 // packet -> [u8]
 pub fn serialize_packet(packet: Packet, data_len: usize, buf: &mut [u8]) {
 	// Network Flags	
@@ -65,14 +69,18 @@ pub fn serialize_packet(packet: Packet, data_len: usize, buf: &mut [u8]) {
 	buf[3] = packet.header.flags.rsv_wire_bit4 as u8; 
 	buf[4] = packet.header.flags.version;
 
+	let seq_no = htons(packet.header.sequence_number);
+	let length = htons(packet.header.length);
+	let fragment_offset = htons(packet.header.fragment_offset);
+
 	// Network Header
 	buf[5] = packet.header.src;	
-	buf[6] = (packet.header.sequence_number & 0x00FF) as u8;
-	buf[7] = ((packet.header.sequence_number & 0xFF00) >> 8) as u8;
-	buf[8] = (packet.header.length & 0x00FF) as u8;
-	buf[9] = ((packet.header.length & 0xFF00) >> 8) as u8;
-	buf[10] = (packet.header.fragment_offset & 0x00FF) as u8;
-	buf[11] = ((packet.header.fragment_offset & 0xFF00) >> 8) as u8;
+	buf[6] = (seq_no & 0x00FF) as u8;
+	buf[7] = ((seq_no & 0xFF00) >> 8) as u8;
+	buf[8] = (length & 0x00FF) as u8;
+	buf[9] = ((length & 0xFF00) >> 8) as u8;
+	buf[10] = (fragment_offset & 0x00FF) as u8;
+	buf[11] = ((fragment_offset & 0xFF00) >> 8) as u8;
 
 	// Copy packet.data to buf
 	for (i, c) in packet.data[0..data_len].iter().enumerate() {
@@ -93,13 +101,17 @@ pub fn unserialize_packet(buf: &[u8]) -> Packet {
         version:        buf[4],
     };
 
+	let seq_no = htons((buf[6] as u16) | ((buf[7] as u16) << 8));
+	let length = htons((buf[8] as u16) | ((buf[9] as u16) << 8));
+	let fragment_offset = htons((buf[10] as u16) | ((buf[11] as u16) << 8));
+
     // Network Header
     let header: SignbusNetworkHeader = SignbusNetworkHeader {
         flags:              flags,
         src:                buf[5],
-        sequence_number:    (buf[6] as u16) | (buf[7] as u16) << 8,
-        length:             (buf[8] as u16) | (buf[9] as u16) << 8,
-        fragment_offset:    (buf[10] as u16) | (buf[11] as u16) << 8,
+        sequence_number:   	seq_no,
+        length:             length,
+        fragment_offset:    fragment_offset,
     };
 
 	debug!("header.length: {}", header.length);
