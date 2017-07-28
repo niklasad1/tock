@@ -1,9 +1,11 @@
 /// Helper code for Signbus
 
+/// Signbus Constants
 pub const I2C_MAX_LEN: usize = 255;
 pub const HEADER_SIZE: usize = 12;
 pub const I2C_MAX_DATA_LEN: usize = I2C_MAX_LEN - HEADER_SIZE;
 
+/// Signbus Errors
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
 	CommandComplete,	
@@ -12,10 +14,32 @@ pub enum Error {
 	ArbitrationLost,
 }
 
+/// Signbus Port Layer
 #[derive(Clone,Copy,PartialEq)]
 pub enum MasterAction {
     Read(u8),
     Write,
+}
+
+/// Signbus App Layer
+pub enum SignbusFrameType {
+    NotificationFrame = 0,
+    CommandFrame = 1,
+    ResponseFrame = 2,
+    ErrorFrame = 3,
+}
+
+pub enum SignbusApiType {
+    InitializationApiType = 1,
+    StorageApiType = 2,
+    NetworkingApiType = 3,
+    ProcessingApiType = 4,
+    EnergyApiType = 5,
+    TimeLocationApiType = 6,
+    EdisonApiType = 7,
+    JsonApiType = 8,
+    WatchdogApiType = 9,
+    HighestApiType = 10,
 }
 
 /// Signbus Packet 
@@ -46,6 +70,7 @@ pub struct Packet {
 	pub data: [u8; I2C_MAX_DATA_LEN],
 }
 
+/// Signbus Packet Clone triat
 impl Clone for Packet {
     fn clone(&self) -> Packet { *self }
 }
@@ -56,11 +81,12 @@ impl Clone for SignbusNetworkFlags {
     fn clone(&self) -> SignbusNetworkFlags { *self }
 }
 
+/// Host to network short
 pub fn htons(a: u16) -> u16 {
 	(((a & 0x00FF) << 8) | ((a & 0xFF00) >> 8))
 }
 
-// packet -> [u8]
+/// Signbus packet -> [u8]
 pub fn serialize_packet(packet: Packet, data_len: usize, buf: &mut [u8]) {
 	// Network Flags	
 	buf[0] = packet.header.flags.is_fragment as u8; 
@@ -90,7 +116,7 @@ pub fn serialize_packet(packet: Packet, data_len: usize, buf: &mut [u8]) {
 	//debug!("{:?}", buf);
 }
 
-// [u8] -> packet
+/// [u8] -> Signbus packet
 pub fn unserialize_packet(buf: &[u8]) -> Packet {
 	// Network Flags
 	let flags: SignbusNetworkFlags = SignbusNetworkFlags {
@@ -114,8 +140,8 @@ pub fn unserialize_packet(buf: &[u8]) -> Packet {
         fragment_offset:    fragment_offset,
     };
 
-	debug!("header.length: {}", header.length);
-	debug!("header.offset: {}", header.fragment_offset);
+	//debug!("header.length: {}", header.length);
+	//debug!("header.offset: {}", header.fragment_offset);
 	
 	if header.flags.is_fragment {
 		// Copy data from slice to fixed sized array to package into packet

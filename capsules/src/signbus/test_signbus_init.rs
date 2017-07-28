@@ -2,18 +2,30 @@
 // By: Justin Hsieh
 
 use core::cell::Cell;
-use core::cmp;
-use kernel::{AppId, AppSlice, Callback, Driver, ReturnCode, Shared};
-use kernel::common::take_cell::{MapCell, TakeCell};
-use kernel::hil;
-use kernel::hil::gpio;
-use kernel::hil::time;
+use kernel::common::take_cell::{TakeCell};
 use signbus;
 use signbus::{io_layer, support, app_layer, port_layer, protocol_layer};
 
-pub static mut BUFFER0: [u8; 512] = [0; 512];
+pub static mut BUFFER0: [u8; 255] = [0; 255];
+pub static mut BUFFER1: [u8; 255] = [0; 255];
 
+pub enum ModuleAddress {
+	Controller = 0x20,
+	Storage = 0x21,
+	Radio = 0x22,
+}
 
+#[derive(Clone,Copy,PartialEq)]
+pub enum DelayState {
+	Idle,
+    RequestIsolation,
+}
+
+pub enum InitMessageType {
+   Declare = 0,
+   KeyExchange = 1,
+   GetMods = 2,
+}
 
 pub struct SignbusInitialization<'a> {
 
@@ -23,10 +35,17 @@ pub struct SignbusInitialization<'a> {
 	io_layer: 			&'a io_layer::SignbusIOLayer<'a>,
 	port_layer: 		&'a port_layer::PortLayer,
 
-	app_client: Cell<Option<&'static app_layer::SignbusAppLayer<'static>>>,
-	port_client: Cell<Option<&'static port_layer::PortLayer>>,
+	delay_state:		Cell<DelayState>,
+	send_buf:			TakeCell <'static, [u8]>,
 
-	buf:					TakeCell <'static, [u8]>,
+
+	// INCOMING MESSAGE STORAGE
+	source_address:		Cell<u8>,
+	frame_type:			Cell<support::SignbusFrameType>,
+	api_type:			Cell<support::SignbusApiType>,
+	message_type:		Cell<InitMessageType>,
+	length:				Cell<usize>,
+	recv_buf:			TakeCell<'static, [u8]>,
 }
 
 impl<'a> SignbusInitialization <'a> {
@@ -34,7 +53,8 @@ impl<'a> SignbusInitialization <'a> {
 				protocol_layer: 	&'a protocol_layer::SignbusProtocolLayer,
 				io_layer: 			&'a io_layer::SignbusIOLayer,
 				port_layer: 		&'a port_layer::PortLayer,
-				buf: 				&'static mut [u8],
+				send_buf: 			&'static mut [u8],
+				recv_buf:			&'static mut [u8],
 	
 	) -> SignbusInitialization <'a> {
 		
@@ -43,11 +63,31 @@ impl<'a> SignbusInitialization <'a> {
 			protocol_layer:  	protocol_layer,
 			io_layer:  			io_layer,
 			port_layer:  		port_layer,
+	
+			source_address:		Cell::new(0),
+			frame_type:			Cell::new(support::SignbusFrameType::NotificationFrame),
+			api_type:			Cell::new(support::SignbusApiType::InitializationApiType),
+			message_type:		Cell::new(InitMessageType::Declare),
+			length:				Cell::new(0),
+			recv_buf:			TakeCell::new(recv_buf),
 			
-			app_client:			Cell::new(None),
-			port_client:		Cell::new(None),
-			buf:				TakeCell::new(buf),
+			delay_state:		Cell::new(DelayState::Idle),
+			send_buf:			TakeCell::new(send_buf),
 		}
+	}
+/*
+	pub fn signpost_api_send(&self, i2c_address: u8, frame: support::SignbusFrameType, api: support::SignbusApiType, message_type: InitMessageType, message_length: usize, message: &'static mut [u8]) -> ReturnCode {
+	
+		self.app_layer.signbus_app_send(i2c_address, frame, api, message_type as u8, message_length, message)
+	}
+*/
+	pub fn signpost_initialization_declare_controller(&self) {
+
+		self.send_buf.take().map(|buf|{
+			buf[0] = 0x32;
+
+			self.app_layer.signbus_app_send(ModuleAddress::Controller as u8, support::SignbusFrameType::CommandFrame, support::SignbusApiType::InitializationApiType, InitMessageType::Declare as u8, 1, buf);
+		});
 	}
 
 	pub fn signpost_initialization_request_isolation(&self) {
@@ -70,7 +110,7 @@ impl<'a> SignbusInitialization <'a> {
 		self.io_layer.signbus_io_init(i2c_address);
 	
 		// listen for messages
-		self.buf.take().map(|buf| {	
+		self.recv_buf.take().map(|buf| {	
 			self.app_layer.signbus_app_recv(buf);
 		});
 
@@ -87,21 +127,53 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization <'a> {
     // Called when the mod_in GPIO goes low.
     fn mod_in_interrupt(&self) {
 		debug!("Interrupt!");
-
+		self.delay_state.set(DelayState::RequestIsolation);
 		self.port_layer.delay_ms(50);
 
-		self.port_layer.mod_in_disable_interrupt();
-		self.port_layer.mod_out_set();
-		self.port_layer.debug_led_off();
+
+		//self.port_layer.mod_in_disable_interrupt();
+		//self.port_layer.mod_out_set();
+		//self.port_layer.debug_led_off();
 	}
 
     // Called when a delay_ms has completed.
     fn delay_complete(&self) {
 		debug!("Delay fired");
-		self.mod_in_interrupt(); // need some kind of state to go to the correct functions after delay
 
+        match self.delay_state.get() {
+
+        	DelayState::Idle => {
+			
+			}
+
+			DelayState::RequestIsolation => {
+				if self.port_layer.mod_in_read() != 0 {
+					debug!("Spurrious interrupt");
+				}							
+										
+				self.signpost_initialization_declare_controller();
+			}
+		}
 	}
 
 }
 
 
+impl<'a> app_layer::AppLayerClient for SignbusInitialization <'a> {
+	
+    // Called when a new packet is received over I2C.
+    fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error) {
+
+		// signpost_initialization_declared_callback
+
+	}
+	// Called when an I2C master write command is complete.
+    fn packet_sent(&self, error: support::Error) {
+
+	}
+
+
+    // Called when an I2C slave read has completed.
+    fn packet_read_from_slave(&self) {}
+
+}

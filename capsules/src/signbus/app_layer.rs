@@ -1,24 +1,21 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
 /// Kernel implementation of signbus_app_layer
 /// apps/libsignpost/signbus_app_layer.c -> kernel/tock/capsules/src/signbus_app_layer.rs
 /// By: Justin Hsieh
 
-
 use core::cell::Cell;
-use core::cmp;
 use kernel::{AppId, AppSlice, Callback, Driver, ReturnCode, Shared};
 use kernel::common::take_cell::{MapCell, TakeCell};
 use kernel::hil;
 use kernel::hil::gpio;
 use kernel::hil::time;
 // Capsules
-use signbus::{protocol_layer, support};
+use signbus;
+use signbus::{protocol_layer, support, test_signbus_init};
 
-pub static mut BUFFER0: [u8; 512] = [0; 512];
-//pub static mut BUFFER1: [u8; 1024] = [0; 1024];
+/// Buffers used to concatenate message information.
+pub static mut BUFFER0: [u8; 255] = [0; 255];
 
+/// Application/ userland buffers and user callback.
 pub struct App {
 	callback: Option<Callback>,
 	master_tx_buffer: Option<AppSlice<Shared, u8>>,
@@ -39,30 +36,24 @@ impl Default for App {
 	}
 }
 
-pub enum SignbusFrameType {
-    NotificationFrame = 0,
-    CommandFrame = 1,
-    ResponseFrame = 2,
-    ErrorFrame = 3,
-}
-
-pub enum SignbusApiType {
-    InitializationApiType = 1,
-    StorageApiType = 2,
-    NetworkingApiType = 3,
-    ProcessingApiType = 4,
-    EnergyApiType = 5,
-    TimeLocationApiType = 6,
-    EdisonApiType = 7,
-    JsonApiType = 8,
-    WatchdogApiType = 9,
-    HighestApiType = 10,
-}
-
+/// SignbusAppLayer to handle userland interaction and adding message type information.
 pub struct SignbusAppLayer<'a> {
 	protocol_layer: 	&'a protocol_layer::SignbusProtocolLayer<'a>,
-	payload:					TakeCell <'static, [u8]>,
-    app: 						MapCell<App>,
+	payload:			TakeCell <'static, [u8]>,
+    app: 				MapCell<App>,
+	client: Cell<Option<&'static test_signbus_init::SignbusInitialization<'static>>>,
+}
+
+/// AppLayerClient for I2C sending/receiving callbacks. Implemented by SignbusInitialization.
+pub trait AppLayerClient {
+     // Called when a new packet is received over I2C.
+     fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error);
+
+     // Called when an I2C master write command is complete.
+     fn packet_sent(&self, error: support::Error);
+
+     // Called when an I2C slave read has completed.
+     fn packet_read_from_slave(&self);
 }
 
 impl<'a> SignbusAppLayer<'a,> {
@@ -71,20 +62,19 @@ impl<'a> SignbusAppLayer<'a,> {
 		
 		SignbusAppLayer {
 			protocol_layer:  	protocol_layer,
-			payload:					TakeCell::new(payload),
-            app: 						MapCell::new(App::default()),
+			payload:			TakeCell::new(payload),
+            app: 				MapCell::new(App::default()),
+			client: 			Cell::new(None),
 		}
 	}
+	
+	pub fn set_client(&self, client: &'static test_signbus_init::SignbusInitialization) -> ReturnCode {
+		self.client.set(Some(client));
+		ReturnCode::SUCCESS
+	}
 
-	pub fn signbus_app_send(&self, 
-							address: u8,
-							frame_type: SignbusFrameType,
-							api_type: SignbusApiType,
-							message_type: u8,
-							message_length: usize,
-							message: &'static mut [u8]) -> ReturnCode {
-		
-		debug!("Signbus_App_send");
+	pub fn signbus_app_send(&self, address: u8, frame_type: support::SignbusFrameType, api_type: support::SignbusApiType, message_type: u8, message_length: usize, message: &'static mut [u8]
+	) -> ReturnCode {
 		
 		let mut rc = ReturnCode::SUCCESS;
 		let len: usize = 1 + 1 + 1 + message_length;
@@ -101,7 +91,6 @@ impl<'a> SignbusAppLayer<'a,> {
 			}	
 		});
 
-		// Send to protocol_layer
 		self.payload.take().map(|payload|{
 			rc = self.protocol_layer.signbus_protocol_send(address, payload, len);
 		});
@@ -110,29 +99,28 @@ impl<'a> SignbusAppLayer<'a,> {
 	}
 	
 	pub fn signbus_app_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
-		//debug!("Signbus_App_recv");
-
 		self.protocol_layer.signbus_protocol_recv(buffer)
 	}
 }
 
 impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer <'a> {
-	
 	// Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error) {
-		
+		self.client.get().map(|client| {
+			client.packet_received(data, length, error);	
+		});
 	}
 
     // Called when an I2C master write command is complete.
-    fn packet_sent(&self, error: support::Error) {}
+    fn packet_sent(&self, error: support::Error) {
+		self.client.get().map(|client| {
+			client.packet_sent(error);	
+		});
+	}
 
     // Called when an I2C slave read has completed.
-    fn packet_read_from_slave(&self) {}
-
-    // Called when the mod_in GPIO goes low.
-    // fn mod_in_interrupt(&self) {}
-
-    // Called when a delay_ms has completed.
-    // fn delay_complete(&self) {}
+    fn packet_read_from_slave(&self) {
+		// TODO: implement slave write/ master read
+	}
 
 }

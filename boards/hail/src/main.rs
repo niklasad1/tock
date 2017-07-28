@@ -533,9 +533,11 @@ pub unsafe fn reset_handler() {
 				io_layer,
 				port_layer,
               	&mut capsules::signbus::test_signbus_init::BUFFER0,
+              	&mut capsules::signbus::test_signbus_init::BUFFER1,
      ));
 	
-	port_layer.set_init_client(signbus);	
+	port_layer.set_init_client(signbus);
+	app_layer.set_client(signbus);
 	signbus.signpost_initialization_module_init(0x32);
 	
 	//debug!("Initialization complete. Entering main loop");

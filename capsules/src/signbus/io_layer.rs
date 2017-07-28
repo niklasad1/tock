@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
 /// Kernel implementation of signbus_io_interface
 /// apps/libsignpost/signbus_io_interface.c -> kernel/tock/capsules/src/signbus_io_interface.rs
 /// By: Justin Hsieh
@@ -12,20 +9,22 @@ use kernel::{ReturnCode};
 use kernel::common::take_cell::{MapCell, TakeCell};
 use kernel::hil;
 
+// Capsules
 use signbus;
 use signbus::{support, port_layer, protocol_layer};
 
-pub static mut BUFFER0: [u8; 1024] = [0; 1024];
-pub static mut BUFFER1: [u8; 1024] = [0; 1024];
-//pub static mut BUFFER2: [u8; 512] = [4; 512];
+/// Buffers used for receiving and data storage.
+pub static mut BUFFER0: [u8; 255] = [0; 255];
+pub static mut BUFFER1: [u8; 255] = [0; 255];
 
+
+/// SignbusIOLayer handles packet sending and receiving.
 pub struct SignbusIOLayer<'a> {
     port_layer:				&'a port_layer::PortLayer,
 	
     this_device_address:	Cell<u8>,
     sequence_number:		Cell<u16>,
 			
-
 	message_seq_no:			Cell<u16>,
 	message_src:     		Cell<u8>,		
 	length_received:		Cell<usize>,
@@ -36,6 +35,7 @@ pub struct SignbusIOLayer<'a> {
     data_buf:				TakeCell <'static, [u8]>,
 }
 
+/// IOLayerClient for I2C sending/receiving callbacks. Implemented by SignbusProtocolLayer.
 pub trait IOLayerClient {
      // Called when a new packet is received over I2C.
      fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error);
@@ -45,12 +45,6 @@ pub trait IOLayerClient {
 
      // Called when an I2C slave read has completed.
      fn packet_read_from_slave(&self);
-
-     // Called when the mod_in GPIO goes low.
-     // fn mod_in_interrupt(&self);
-
-     // Called when a delay_ms has completed.
-     // fn delay_complete(&self);
 }
 
 impl<'a> SignbusIOLayer<'a> {
@@ -80,11 +74,9 @@ impl<'a> SignbusIOLayer<'a> {
 		ReturnCode::SUCCESS
 	}
    
-	/// Initialization routine to set up the slave address for this device.
-    /// MUST be called before any other methods.
+	// Initialization routine to set up the slave address for this device.
+    // MUST be called before any other methods.
     pub fn signbus_io_init(&self, address: u8) -> ReturnCode {
-		//debug!("io_layer_init");
-
 		self.this_device_address.set(address);
 		self.port_layer.init(address);
 
@@ -92,7 +84,7 @@ impl<'a> SignbusIOLayer<'a> {
     }
 
 
-	/// Synchronous send call
+	// Send call, callback will handle sending multiple packets if data is longer than I2C_MAX_DATA_LEN.
     pub fn signbus_io_send(&self, dest: u8, encrypted: bool, data: &'static mut [u8], len: usize) -> ReturnCode {
 		debug!("Signbus_Interface_send");
 		
@@ -161,6 +153,7 @@ impl<'a> SignbusIOLayer<'a> {
 		ReturnCode::SUCCESS
     }
 
+	// Recv call, listen for messages and callback handles stitching multiple packets together.
 	pub fn signbus_io_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
 		debug!("io_layer_recv");
 	
@@ -175,6 +168,7 @@ impl<'a> SignbusIOLayer<'a> {
 
 
 impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
+	// Packet received, decipher packet and if needed, stitch packets together or callback upward.
 	fn packet_received(&self, packet: support::Packet, length: u8, error: support::Error) {
 		debug!("PortLayerClient packet_received in io_layer");
 
@@ -203,7 +197,6 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 		//debug!("offset: {}", offset);
 		//debug!("more_packets: {}", more_packets);
 		//debug!("remainder: {}", remainder);
-
 
 		// First packet
 		if self.length_received.get() == 0 {
@@ -246,10 +239,11 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 				}
 			});
 			self.length_received.set(self.length_received.get() + remainder);
-			// sanity check
-			if self.length_received.get() + support::HEADER_SIZE == packet.header.length as usize {
-				//debug!("this should happen");
-			}
+			
+			//testing: sanity check
+			//if self.length_received.get() + support::HEADER_SIZE == packet.header.length as usize {
+			//	debug!("this should happen")
+			//}
 			
 			// Callback protocol_layer 
 			self.client.get().map(|client| {
@@ -266,11 +260,10 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 		}
 
 	}
-		
-
-
+	
+	// Packet has finished sending. If needed, send more or callback upward.	
     fn packet_sent(&self, mut packet: support::Packet, error: signbus::support::Error) {
-		//debug!("PortLayerClient packet_sent in io_layer");
+		debug!("PortLayerClient packet_sent in io_layer");
 		
 		// If error, stop sending and propogate up
 		if error != support::Error::CommandComplete	{
@@ -316,23 +309,15 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer <'a> {
 		} else {
 			// Callback protocol_layer
 			self.client.get().map(|client| {
-				debug!("done sending");
 				client.packet_sent(error);	
 			});
 		}		
 	
     }
 
-    fn packet_read_from_slave(&self) {
+    fn packet_read_from_slave(&self) { 
+		// TODO: implement slave write/ master read
 		debug!("PortLayerClient packet_read_from_slave in io_layer");
     }
-
-    //fn mod_in_interrupt(&self) {
-	//	debug!("PortLayerClient mod_in_interrupt in io_layer");
-    //}
-
-    //fn delay_complete(&self) {
-	//	debug!("PortLayerClient delay_complete in io_layer");
-    //}
 }
 
