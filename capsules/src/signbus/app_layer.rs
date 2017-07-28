@@ -33,117 +33,120 @@ pub static mut BUFFER1: [u8; 255] = [0; 255];
 /// Application/ userland buffers and user callback.
 // TODO: implement userland interaction/ syscalls
 pub struct App {
-	callback: Option<Callback>,
-	master_tx_buffer: Option<AppSlice<Shared, u8>>,
-	master_rx_buffer: Option<AppSlice<Shared, u8>>,
-	slave_tx_buffer: Option<AppSlice<Shared, u8>>,
-	slave_rx_buffer: Option<AppSlice<Shared, u8>>,
+    callback: Option<Callback>,
+    master_tx_buffer: Option<AppSlice<Shared, u8>>,
+    master_rx_buffer: Option<AppSlice<Shared, u8>>,
+    slave_tx_buffer: Option<AppSlice<Shared, u8>>,
+    slave_rx_buffer: Option<AppSlice<Shared, u8>>,
 }
 
 impl Default for App {
-	fn default() -> App {
-		App {
-			callback: None,
-			master_tx_buffer: None,
-			master_rx_buffer: None,
-			slave_tx_buffer: None,
-			slave_rx_buffer: None,
-		}
-	}
+    fn default() -> App {
+        App {
+            callback: None,
+            master_tx_buffer: None,
+            master_rx_buffer: None,
+            slave_tx_buffer: None,
+            slave_rx_buffer: None,
+        }
+    }
 }
 
 /// SignbusAppLayer to handle userland interaction and adding message type information.
 pub struct SignbusAppLayer<'a> {
-	protocol_layer: 	&'a protocol_layer::SignbusProtocolLayer<'a>,
-	payload:			TakeCell <'static, [u8]>,
-	send_buf:			TakeCell <'static, [u8]>,
-    app: 				MapCell<App>,
-	client: Cell<Option<&'static test_signbus_init::SignbusInitialization<'static>>>,
+    protocol_layer: &'a protocol_layer::SignbusProtocolLayer<'a>,
+    payload: TakeCell<'static, [u8]>,
+    send_buf: TakeCell<'static, [u8]>,
+    app: MapCell<App>,
+    client: Cell<Option<&'static test_signbus_init::SignbusInitialization<'static>>>,
 }
 
 /// AppLayerClient for I2C sending/receiving callbacks. Implemented by SignbusInitialization.
 pub trait AppLayerClient {
-     // Called when a new packet is received over I2C.
-     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error);
+    // Called when a new packet is received over I2C.
+    fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error);
 
-     // Called when an I2C master write command is complete.
-     fn packet_sent(&self, data: &'static mut [u8], error: support::Error);
+    // Called when an I2C master write command is complete.
+    fn packet_sent(&self, data: &'static mut [u8], error: support::Error);
 
-     // Called when an I2C slave read has completed.
-     fn packet_read_from_slave(&self);
+    // Called when an I2C slave read has completed.
+    fn packet_read_from_slave(&self);
 }
 
-impl<'a> SignbusAppLayer<'a,> {
-	pub fn new(protocol_layer: &'a protocol_layer::SignbusProtocolLayer,
-				payload: 	&'static mut [u8],
-				send_buf: 	&'static mut [u8]
-	) -> SignbusAppLayer <'a> {
-		
-		SignbusAppLayer {
-			protocol_layer:  	protocol_layer,
-			payload:			TakeCell::new(payload),
-			send_buf:			TakeCell::new(send_buf),
-            app: 				MapCell::new(App::default()),
-			client: 			Cell::new(None),
-		}
-	}
-	
-	pub fn set_client(&self, client: &'static test_signbus_init::SignbusInitialization) -> ReturnCode {
-		self.client.set(Some(client));
-		ReturnCode::SUCCESS
-	}
+impl<'a> SignbusAppLayer<'a> {
+    pub fn new(protocol_layer: &'a protocol_layer::SignbusProtocolLayer,
+               payload: &'static mut [u8],
+               send_buf: &'static mut [u8])
+               -> SignbusAppLayer<'a> {
 
-	pub fn signbus_app_send(&self, address: u8, frame_type: support::SignbusFrameType, api_type: support::SignbusApiType, message_type: u8, message_length: usize, message: &'static mut [u8]
-	) -> ReturnCode {
-		
-		let mut rc = ReturnCode::SUCCESS;
-		let len: usize = 1 + 1 + 1 + message_length;
-		
-		// Concatenate info with message
-		self.payload.map(|payload|{
-			payload[0] = frame_type as u8;
-			payload[1] = api_type as u8;
-			payload[2] = message_type;
-			
-			let d = &mut payload.as_mut()[3..len as usize];
-			for (i, c) in message[0..message_length as usize].iter().enumerate() {
-				d[i] = *c;
-			}	
-		});
+        SignbusAppLayer {
+            protocol_layer: protocol_layer,
+            payload: TakeCell::new(payload),
+            send_buf: TakeCell::new(send_buf),
+            app: MapCell::new(App::default()),
+            client: Cell::new(None),
+        }
+    }
 
-		self.payload.take().map(|payload|{
+    pub fn set_client(&self,
+                      client: &'static test_signbus_init::SignbusInitialization)
+                      -> ReturnCode {
+        self.client.set(Some(client));
+        ReturnCode::SUCCESS
+    }
+
+    pub fn signbus_app_send(&self,
+                            address: u8,
+                            frame_type: support::SignbusFrameType,
+                            api_type: support::SignbusApiType,
+                            message_type: u8,
+                            message_length: usize,
+                            message: &'static mut [u8])
+                            -> ReturnCode {
+
+        let mut rc = ReturnCode::SUCCESS;
+        let len: usize = 1 + 1 + 1 + message_length;
+
+        // Concatenate info with message
+        self.payload.map(|payload| {
+            payload[0] = frame_type as u8;
+            payload[1] = api_type as u8;
+            payload[2] = message_type;
+
+            let d = &mut payload.as_mut()[3..len as usize];
+            for (i, c) in message[0..message_length as usize].iter().enumerate() {
+                d[i] = *c;
+            }
+        });
+
+        self.payload.take().map(|payload|{
 			rc = self.protocol_layer.signbus_protocol_send(address, payload, len);
 		});
 
-		return rc;
-	}
-	
-	pub fn signbus_app_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
-		self.protocol_layer.signbus_protocol_recv(buffer)
-	}
+        return rc;
+    }
+
+    pub fn signbus_app_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
+        self.protocol_layer.signbus_protocol_recv(buffer)
+    }
 }
 
-impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer <'a> {
-	// Called when a new packet is received over I2C.
+impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer<'a> {
+    // Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
-		self.client.get().map(move |client| {
-			client.packet_received(data, length, error);	
-		});
-	}
+        self.client.get().map(move |client| { client.packet_received(data, length, error); });
+    }
 
     // Called when an I2C master write command is complete.
     fn packet_sent(&self, data: &'static mut [u8], error: support::Error) {
-		self.client.get().map(move |client| {
-			self.payload.replace(data);
-			self.send_buf.take().map(|send_buf| {
-				client.packet_sent(send_buf, error);	
-			});
-		});
-	}
+        self.client.get().map(move |client| {
+            self.payload.replace(data);
+            self.send_buf.take().map(|send_buf| { client.packet_sent(send_buf, error); });
+        });
+    }
 
     // Called when an I2C slave read has completed.
     fn packet_read_from_slave(&self) {
-		// TODO: implement slave write/ master read
-	}
-
+        // TODO: implement slave write/ master read
+    }
 }

@@ -14,9 +14,9 @@ extern crate compiler_builtins;
 extern crate kernel;
 extern crate sam4l;
 
-use capsules::signbus::{support, io_layer, port_layer};
 use capsules::console::{self, Console};
 use capsules::nrf51822_serialization::{self, Nrf51822Serialization};
+use capsules::signbus::{support, io_layer, port_layer};
 use capsules::timer::TimerDriver;
 use capsules::virtual_alarm::{MuxAlarm, VirtualMuxAlarm};
 use capsules::virtual_i2c::{I2CDevice, MuxI2C};
@@ -92,7 +92,7 @@ impl Platform for Hail {
             9 => f(Some(self.button)),
             //10 => f(Some(self.si7021)),
             //11 => f(Some(self.ninedof)),
-			//13 => f(Some(self.i2c_master_slave)),
+            //13 => f(Some(self.i2c_master_slave)),
             14 => f(Some(self.rng)),
 
             16 => f(Some(self.crc)),
@@ -197,7 +197,7 @@ pub unsafe fn reset_handler() {
         MuxAlarm<'static, sam4l::ast::Ast>,
         MuxAlarm::new(&sam4l::ast::AST));
     ast.configure(mux_alarm);
-	/*
+    /*
     let sensors_i2c = static_init!(MuxI2C<'static>, MuxI2C::new(&sam4l::i2c::I2C1));
     sam4l::i2c::I2C1.set_master_client(sensors_i2c);
 
@@ -236,7 +236,7 @@ pub unsafe fn reset_handler() {
         TimerDriver<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
         TimerDriver::new(virtual_alarm1, kernel::Container::create()));
     virtual_alarm1.set_client(timer);
-/*
+    /*
     // FXOS8700CQ accelerometer, device address 0x1e
     let fxos8700_i2c = static_init!(I2CDevice, I2CDevice::new(sensors_i2c, 0x1e));
     let fxos8700 = static_init!(
@@ -352,9 +352,9 @@ pub unsafe fn reset_handler() {
     let signbus_virtual_alarm = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
         VirtualMuxAlarm::new(mux_alarm));
-    
-	// signbus port_layer
-	let port_layer = static_init!(
+
+    // signbus port_layer
+    let port_layer = static_init!(
         capsules::signbus::port_layer::SignbusPortLayer<'static, 
 			VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
 		capsules::signbus::port_layer::SignbusPortLayer::new(
@@ -366,12 +366,12 @@ pub unsafe fn reset_handler() {
             signbus_virtual_alarm,
             Some(&sam4l::gpio::PA[13]), // RED LED
 		));
-    
-	sam4l::i2c::I2C1.set_master_client(port_layer);
+
+    sam4l::i2c::I2C1.set_master_client(port_layer);
     sam4l::i2c::I2C1.set_slave_client(port_layer);
-	signbus_virtual_alarm.set_client(port_layer);
-	sam4l::gpio::PB[14].set_client(port_layer);	
-	
+    signbus_virtual_alarm.set_client(port_layer);
+    sam4l::gpio::PB[14].set_client(port_layer);
+
 
     // Signbus IO Interface
     let io_layer = static_init!(
@@ -389,10 +389,10 @@ pub unsafe fn reset_handler() {
         capsules::signbus::protocol_layer::SignbusProtocolLayer<'static>,
         capsules::signbus::protocol_layer::SignbusProtocolLayer::new(io_layer,
     ));
-	
-	io_layer.set_client(protocol_layer);
-    
-	// Signbus App Layer
+
+    io_layer.set_client(protocol_layer);
+
+    // Signbus App Layer
     let app_layer = static_init!(
         capsules::signbus::app_layer::SignbusAppLayer<'static>,
         capsules::signbus::app_layer::SignbusAppLayer::new(protocol_layer,
@@ -422,7 +422,7 @@ pub unsafe fn reset_handler() {
                                                     &mut capsules::symmetric_encryption::BUF,
                                                     &mut capsules::symmetric_encryption::IV));
     hil::symmetric_encryption::SymmetricEncryption::set_client(&sam4l::aes::AES, aes);
-    
+
     let hail = Hail {
         console: console,
         gpio: gpio,
@@ -430,8 +430,8 @@ pub unsafe fn reset_handler() {
         //si7021: si7021,
         //isl29035: isl29035,
         //ninedof: ninedof,
-    	//i2c_master_slave: i2c_modules,
-	    spi: spi_syscalls,
+        //i2c_master_slave: i2c_modules,
+        spi: spi_syscalls,
         nrf51822: nrf_serialization,
         adc: adc,
         led: led,
@@ -463,7 +463,7 @@ pub unsafe fn reset_handler() {
     // Uncomment to measure overheads for TakeCell and MapCell:
     // test_take_map_cell::test_take_map_cell();
 
-	// TESTS
+    // TESTS
 /*
 	// serial_packet test
 	// Network Flags
@@ -492,39 +492,40 @@ pub unsafe fn reset_handler() {
 	
 	support::serialize_packet(packet, 15, &mut io_layer::BUFFER0);
 */
-	
-	// slave_listen test
-	//io_layer.signbus_io_init(0x20);
-	//io_layer.signbus_io_recv(&mut io_layer::BUFFER0);
 
-	// slave listen test2 (2 packets)
-	//io_layer.signbus_io_init(0x20);
-	//io_layer.signbus_io_recv(&mut io_layer::BUFFER3);
 
-	// master_write test
-	//io_layer.signbus_io_init(0x20);
-	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
-	
-	// master_write test2 (2 packets)
-	//io_layer.signbus_io_init(0x20);
-	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 255);
+    // slave_listen test
+    //io_layer.signbus_io_init(0x20);
+    //io_layer.signbus_io_recv(&mut io_layer::BUFFER0);
 
-	// master_write test2 (3 packets)
-	//io_layer.signbus_io_init(0x20);
-	//io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 512);
-	
-	// alarm test		
-	//port_layer.delay(2);	
+    // slave listen test2 (2 packets)
+    //io_layer.signbus_io_init(0x20);
+    //io_layer.signbus_io_recv(&mut io_layer::BUFFER3);
 
-	// gpio set/clear test
-	//port_layer.clear();
-	//port_layer.set();
+    // master_write test
+    //io_layer.signbus_io_init(0x20);
+    //io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
 
-	// gpio enable_interrupt test
-	// port_layer.enable_interrupt();
+    // master_write test2 (2 packets)
+    //io_layer.signbus_io_init(0x20);
+    //io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 255);
 
-	// initialization test
-	
+    // master_write test2 (3 packets)
+    //io_layer.signbus_io_init(0x20);
+    //io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 512);
+
+    // alarm test
+    //port_layer.delay(2);
+
+    // gpio set/clear test
+    //port_layer.clear();
+    //port_layer.set();
+
+    // gpio enable_interrupt test
+    // port_layer.enable_interrupt();
+
+    // initialization test
+
     let signbus = static_init!(
         capsules::signbus::test_signbus_init::SignbusInitialization<'static>,
         capsules::signbus::test_signbus_init::SignbusInitialization::new(
@@ -535,12 +536,12 @@ pub unsafe fn reset_handler() {
               	&mut capsules::signbus::test_signbus_init::BUFFER0,
               	&mut capsules::signbus::test_signbus_init::BUFFER1,
      ));
-	
-	port_layer.set_init_client(signbus);
-	app_layer.set_client(signbus);
-	signbus.signpost_initialization_module_init(0x32);
-	
-	//debug!("Initialization complete. Entering main loop");
+
+    port_layer.set_init_client(signbus);
+    app_layer.set_client(signbus);
+    signbus.signpost_initialization_module_init(0x32);
+
+    //debug!("Initialization complete. Entering main loop");
     extern "C" {
         /// Beginning of the ROM region containing app images.
         static _sapps: u8;
