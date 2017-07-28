@@ -34,10 +34,10 @@ pub struct SignbusProtocolLayer<'a> {
 /// ProtocolLayerClient for I2C sending/receiving callbacks. Implemented by SignbusAppLayer.
 pub trait ProtocolLayerClient {
      // Called when a new packet is received over I2C.
-     fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error);
+     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error);
 
      // Called when an I2C master write command is complete.
-     fn packet_sent(&self, error: support::Error);
+     fn packet_sent(&self, data: &'static mut [u8], error: support::Error);
 
      // Called when an I2C slave read has completed.
      fn packet_read_from_slave(&self);
@@ -73,18 +73,18 @@ impl<'a> SignbusProtocolLayer<'a> {
 
 impl<'a> io_layer::IOLayerClient for SignbusProtocolLayer <'a> {
     // Called when a new packet is received over I2C.
-	fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error) {
+	fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
 		// TODO: decryption not available in Rust
-		self.client.get().map(|client| {
+		self.client.get().map(move |client| {
 			client.packet_received(data, length, error);	
 		});
 		
 	}
 
     // Called when an I2C master write command is complete.
-    fn packet_sent(&self, error: support::Error) {
-		self.client.get().map(|client| {
-			client.packet_sent(error);	
+    fn packet_sent(&self, data: &'static mut [u8], error: support::Error) {
+		self.client.get().map(move |client| {
+			client.packet_sent(data, error);	
 		});
 	}
 

@@ -75,17 +75,13 @@ impl<'a> SignbusInitialization <'a> {
 			send_buf:			TakeCell::new(send_buf),
 		}
 	}
-/*
-	pub fn signpost_api_send(&self, i2c_address: u8, frame: support::SignbusFrameType, api: support::SignbusApiType, message_type: InitMessageType, message_length: usize, message: &'static mut [u8]) -> ReturnCode {
 	
-		self.app_layer.signbus_app_send(i2c_address, frame, api, message_type as u8, message_length, message)
-	}
-*/
 	pub fn signpost_initialization_declare_controller(&self) {
+		debug!("Declare controller...");
 
 		self.send_buf.take().map(|buf|{
 			buf[0] = 0x32;
-
+		
 			self.app_layer.signbus_app_send(ModuleAddress::Controller as u8, support::SignbusFrameType::CommandFrame, support::SignbusApiType::InitializationApiType, InitMessageType::Declare as u8, 1, buf);
 		});
 	}
@@ -120,13 +116,11 @@ impl<'a> SignbusInitialization <'a> {
 
 }
 
-
-
 impl<'a> port_layer::PortLayerClient2 for SignbusInitialization <'a> {
 	
     // Called when the mod_in GPIO goes low.
     fn mod_in_interrupt(&self) {
-		debug!("Interrupt!");
+		//debug!("Interrupt!");
 		self.delay_state.set(DelayState::RequestIsolation);
 		self.port_layer.delay_ms(50);
 
@@ -138,8 +132,6 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization <'a> {
 
     // Called when a delay_ms has completed.
     fn delay_complete(&self) {
-		debug!("Delay fired");
-
         match self.delay_state.get() {
 
         	DelayState::Idle => {
@@ -150,7 +142,6 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization <'a> {
 				if self.port_layer.mod_in_read() != 0 {
 					debug!("Spurrious interrupt");
 				}							
-										
 				self.signpost_initialization_declare_controller();
 			}
 		}
@@ -162,14 +153,21 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization <'a> {
 impl<'a> app_layer::AppLayerClient for SignbusInitialization <'a> {
 	
     // Called when a new packet is received over I2C.
-    fn packet_received(&self, data: &'static [u8], length: usize, error: support::Error) {
+    fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
 
 		// signpost_initialization_declared_callback
-
+		if length < 0 {
+			debug!("{:?}", data);			
+		}
+		else {
+			debug!("Error");
+			return;
+		}
+		self.send_buf.replace(data);
 	}
 	// Called when an I2C master write command is complete.
-    fn packet_sent(&self, error: support::Error) {
-
+    fn packet_sent(&self, data: &'static mut [u8], error: support::Error) {
+		self.send_buf.replace(data);
 	}
 
 

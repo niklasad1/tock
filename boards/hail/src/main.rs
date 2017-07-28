@@ -359,7 +359,8 @@ pub unsafe fn reset_handler() {
 			VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
 		capsules::signbus::port_layer::SignbusPortLayer::new(
             &sam4l::i2c::I2C1,
-            &mut capsules::signbus::port_layer::I2C_BUFFER,
+            &mut capsules::signbus::port_layer::I2C_SEND,
+            &mut capsules::signbus::port_layer::I2C_RECV,
             &sam4l::gpio::PB[14], // D0 mod_in
             &sam4l::gpio::PB[15], // D1 mod_out
             signbus_virtual_alarm,
@@ -377,7 +378,8 @@ pub unsafe fn reset_handler() {
         capsules::signbus::io_layer::SignbusIOLayer<'static>,
         capsules::signbus::io_layer::SignbusIOLayer::new(port_layer,
               	&mut capsules::signbus::io_layer::BUFFER0,
-                &mut capsules::signbus::io_layer::BUFFER1
+                &mut capsules::signbus::io_layer::BUFFER1,
+                &mut capsules::signbus::io_layer::BUFFER2
      ));
 
     port_layer.set_io_client(io_layer);
@@ -386,8 +388,6 @@ pub unsafe fn reset_handler() {
     let protocol_layer = static_init!(
         capsules::signbus::protocol_layer::SignbusProtocolLayer<'static>,
         capsules::signbus::protocol_layer::SignbusProtocolLayer::new(io_layer,
-        		//&mut capsules::signbus::protocol_layer::BUFFER0,
-              	//&mut capsules::signbus::protocol_layer::BUFFER1
     ));
 	
 	io_layer.set_client(protocol_layer);
@@ -396,7 +396,8 @@ pub unsafe fn reset_handler() {
     let app_layer = static_init!(
         capsules::signbus::app_layer::SignbusAppLayer<'static>,
         capsules::signbus::app_layer::SignbusAppLayer::new(protocol_layer,
-        		&mut capsules::signbus::app_layer::BUFFER0
+        		&mut capsules::signbus::app_layer::BUFFER0,
+        		&mut capsules::signbus::app_layer::BUFFER1
     ));
 
     /*
