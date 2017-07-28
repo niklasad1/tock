@@ -1,6 +1,25 @@
-/// Kernel implementation of port_signpost_tock
-/// apps/libsignpost/port_signpost_tock.c -> kernel/tock/capsules/src/port_signpost_tock.rs
-/// By: Justin Hsieh
+//! Kernel implementation of port_signpost_tock
+//! apps/libsignpost/port_signpost_tock.c -> kernel/tock/capsules/src/port_signpost_tock.rs
+//! By: Justin Hsieh
+//!
+//! Usage
+//! -----
+//!
+//! ```rust
+//! let port_layer = static_init!(
+//! 	capsules::signbus::port_layer::SignbusPortLayer<'static, 
+//!     	VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
+//!     capsules::signbus::port_layer::SignbusPortLayer::new(
+//!        	&sam4l::i2c::I2C1,
+//!        	&mut capsules::signbus::port_layer::I2C_BUFFER,
+//!        	&sam4l::gpio::PB[14], // D0 mod_in
+//!        	&sam4l::gpio::PB[15], // D1 mod_out
+//!        	signbus_virtual_alarm,
+//!        	Some(&sam4l::gpio::PA[13]), // RED LED
+//!  )); 
+//!    
+//! ```
+
 
 use core::cell::Cell;
 use kernel::ReturnCode;

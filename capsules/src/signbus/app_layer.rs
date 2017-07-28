@@ -1,6 +1,20 @@
-/// Kernel implementation of signbus_app_layer
-/// apps/libsignpost/signbus_app_layer.c -> kernel/tock/capsules/src/signbus_app_layer.rs
-/// By: Justin Hsieh
+//! Kernel implementation of signbus_app_layer
+//! apps/libsignpost/signbus_app_layer.c -> kernel/tock/capsules/src/signbus_app_layer.rs
+//! By: Justin Hsieh
+//!
+//! Usage
+//! -----
+//!
+//! ```rust
+//! // Signbus App Layer
+//! let app_layer = static_init!(
+//!     capsules::signbus::app_layer::SignbusAppLayer<'static>,
+//!     capsules::signbus::app_layer::SignbusAppLayer::new(protocol_layer,
+//!             &mut capsules::signbus::app_layer::BUFFER0
+//! ));
+//!
+//! ```
+
 
 use core::cell::Cell;
 use kernel::{AppId, AppSlice, Callback, Driver, ReturnCode, Shared};

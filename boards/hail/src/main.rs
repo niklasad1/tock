@@ -360,11 +360,10 @@ pub unsafe fn reset_handler() {
 		capsules::signbus::port_layer::SignbusPortLayer::new(
             &sam4l::i2c::I2C1,
             &mut capsules::signbus::port_layer::I2C_BUFFER,
-    //XXX: each of these resources was chosen randomly!
             &sam4l::gpio::PB[14], // D0 mod_in
             &sam4l::gpio::PB[15], // D1 mod_out
             signbus_virtual_alarm,
-            Some(&sam4l::gpio::PA[13]),
+            Some(&sam4l::gpio::PA[13]), // RED LED
 		));
     
 	sam4l::i2c::I2C1.set_master_client(port_layer);

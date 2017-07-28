@@ -1,6 +1,19 @@
-/// Kernel implementation of signbus_io_interface
-/// apps/libsignpost/signbus_io_interface.c -> kernel/tock/capsules/src/signbus_io_interface.rs
-/// By: Justin Hsieh
+//! Kernel implementation of signbus_io_interface
+//! apps/libsignpost/signbus_io_interface.c -> kernel/tock/capsules/src/signbus_io_interface.rs
+//! By: Justin Hsieh
+//!
+//! Usage
+//! -----
+//!
+//! ```rust
+//! let io_layer = static_init!(
+//!     capsules::signbus::io_layer::SignbusIOLayer<'static>,
+//!     capsules::signbus::io_layer::SignbusIOLayer::new(port_layer,
+//!     	&mut capsules::signbus::io_layer::BUFFER0,
+//!     	&mut capsules::signbus::io_layer::BUFFER1
+//!  ));
+//!
+//! ```
 
 use core::mem;
 use core::slice;
