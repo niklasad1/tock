@@ -154,9 +154,9 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
 
         // signpost_initialization_declared_callback
         if length < 0 {
-			// check incoming_api_type and incoming_message_type		
+            // check incoming_api_type and incoming_message_type
 
-			debug!("{:?}", data);
+            debug!("{:?}", data);
         } else {
             debug!("Length: 0");
         }

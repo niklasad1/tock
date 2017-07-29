@@ -241,7 +241,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer<'a> {
                 // Save new src and seq_no
                 self.message_seq_no.set(seq_no);
                 self.message_src.set(src);
-				// TODO: call some error?
+                // TODO: call some error?
 
                 // Reset
                 self.length_received.set(0);
@@ -298,7 +298,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer<'a> {
             self.client.get().map(move |client| {
                 self.send_buf.take().map(|send_buf| { client.packet_sent(send_buf, error); });
             });
-			return;
+            return;
         }
 
         if packet.header.flags.is_fragment == 1 {
