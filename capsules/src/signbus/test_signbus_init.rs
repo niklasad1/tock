@@ -126,7 +126,7 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
     // Called when a delay_ms has completed.
     fn delay_complete(&self) {
         //debug!("Fired!");
-		match self.delay_state.get() {
+        match self.delay_state.get() {
 
             DelayState::Idle => {}
 

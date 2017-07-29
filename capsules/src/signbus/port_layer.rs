@@ -231,7 +231,7 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
     fn mod_in_read(&self) -> usize {
         let pin_state = self.mod_in_pin.read();
         //TODO: how do I use this?
-		//ReturnCode::SuccessWithValue {value: pin_state as usize}
+        //ReturnCode::SuccessWithValue {value: pin_state as usize}
         return pin_state as usize;
     }
 
