@@ -121,16 +121,12 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
         //debug!("Interrupt!");
         self.delay_state.set(DelayState::RequestIsolation);
         self.port_layer.delay_ms(50);
-
-
-        //self.port_layer.mod_in_disable_interrupt();
-        //self.port_layer.mod_out_set();
-        //self.port_layer.debug_led_off();
     }
 
     // Called when a delay_ms has completed.
     fn delay_complete(&self) {
-        match self.delay_state.get() {
+        //debug!("Fired!");
+		match self.delay_state.get() {
 
             DelayState::Idle => {}
 
