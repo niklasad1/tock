@@ -145,12 +145,20 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
     // Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
 
+        match error {
+            support::Error::AddressNak => debug!("Error: AddressNak"),
+            support::Error::DataNak => debug!("Error: DataNak"),
+            support::Error::ArbitrationLost => debug!("Error: ArbitrationNak"),
+            support::Error::CommandComplete => debug!("Command Complete!"),
+        };
+
         // signpost_initialization_declared_callback
         if length < 0 {
-            debug!("{:?}", data);
+			// check incoming_api_type and incoming_message_type		
+
+			debug!("{:?}", data);
         } else {
-            debug!("Error");
-            return;
+            debug!("Length: 0");
         }
         self.send_buf.replace(data);
     }
