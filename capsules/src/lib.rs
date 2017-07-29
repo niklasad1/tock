@@ -46,3 +46,6 @@ pub mod nonvolatile_storage_driver;
 // folders with additional capsules
 pub mod signbus;
 pub mod app_flash_driver;
+pub mod usb;
+pub mod usb_user;
+pub mod usbc_client;
