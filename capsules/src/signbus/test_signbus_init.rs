@@ -115,7 +115,7 @@ impl<'a> SignbusInitialization<'a> {
     }
 }
 
-impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
+impl<'a> port_layer::PortLayerClientGPIOTimer for SignbusInitialization<'a> {
     // Called when the mod_in GPIO goes low.
     fn mod_in_interrupt(&self) {
         //debug!("Interrupt!");

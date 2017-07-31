@@ -58,7 +58,7 @@ pub struct SignbusPortLayer<'a, A: hil::time::Alarm + 'a> {
 }
 
 /// PortLayerClient for I2C sending/receiving callbacks. Implemented by SignbusIOLayer.
-pub trait PortLayerClient {
+pub trait PortLayerClientI2C {
     // Called when a new packet is received over I2C.
     fn packet_received(&self, packet: support::Packet, length: u8, error: support::Error);
 
@@ -70,7 +70,7 @@ pub trait PortLayerClient {
 }
 
 /// PortLayerClient for GPIO and timer callbacks. Implemented by SignbusInitialization.
-pub trait PortLayerClient2 {
+pub trait PortLayerClientGPIOTimer {
     // Called when the mod_in GPIO goes low.
     fn mod_in_interrupt(&self);
 

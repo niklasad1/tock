@@ -195,7 +195,7 @@ impl<'a> SignbusIOLayer<'a> {
 }
 
 
-impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer<'a> {
+impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
     // Packet received, decipher packet and if needed, stitch packets together or callback upward.
     fn packet_received(&self, packet: support::Packet, length: u8, error: support::Error) {
         debug!("PortLayerClient packet_received in io_layer");
@@ -211,7 +211,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer<'a> {
             // Reset
             self.length_received.set(0);
             return;
-            // future: implement sending error message to source
+            // TODO: implement sending error message to source
         }
 
         // Record needed packet data
