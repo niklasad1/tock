@@ -230,6 +230,7 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
 
     fn mod_in_read(&self) -> usize {
         let pin_state = self.mod_in_pin.read();
+        //TODO: how do I use this?
         //ReturnCode::SuccessWithValue {value: pin_state as usize}
         return pin_state as usize;
     }
@@ -275,11 +276,11 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwMasterClient for SignbusPortLa
     // Master read or write completed.
     fn command_complete(&self, buffer: &'static mut [u8], error: hil::i2c::Error) {
 
-        let err: support::Error = match error {										// userland error code
-            hil::i2c::Error::AddressNak => support::Error::AddressNak, 				// -1
-            hil::i2c::Error::DataNak => support::Error::DataNak,					// -2
-            hil::i2c::Error::ArbitrationLost => support::Error::ArbitrationLost, 	// -3
-            hil::i2c::Error::CommandComplete => support::Error::CommandComplete, 	//  0
+        let err: support::Error = match error {
+            hil::i2c::Error::AddressNak => support::Error::AddressNak,
+            hil::i2c::Error::DataNak => support::Error::DataNak,
+            hil::i2c::Error::ArbitrationLost => support::Error::ArbitrationLost,
+            hil::i2c::Error::CommandComplete => support::Error::CommandComplete,
         };
 
         match self.master_action.get() {

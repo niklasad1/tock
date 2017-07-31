@@ -16,7 +16,7 @@ extern crate sam4l;
 
 use capsules::console::{self, Console};
 use capsules::nrf51822_serialization::{self, Nrf51822Serialization};
-use capsules::signbus::{support, io_layer, port_layer};
+use capsules::signbus;
 use capsules::timer::TimerDriver;
 use capsules::virtual_alarm::{MuxAlarm, VirtualMuxAlarm};
 use capsules::virtual_i2c::{I2CDevice, MuxI2C};
@@ -492,6 +492,9 @@ pub unsafe fn reset_handler() {
 	
 	support::serialize_packet(packet, 15, &mut io_layer::BUFFER0);
 */
+
+
+
 
 
     // slave_listen test
