@@ -135,7 +135,7 @@ impl<'a> SignbusAppLayer<'a> {
 impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer<'a> {
     // Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
-		self.client.get().map(move |client| { client.packet_received(data, length, error); });
+        self.client.get().map(move |client| { client.packet_received(data, length, error); });
     }
 
     // Called when an I2C master write command is complete.

@@ -400,7 +400,7 @@ pub unsafe fn reset_handler() {
         		&mut capsules::signbus::app_layer::BUFFER1
     ));
 
-	protocol_layer.set_client(app_layer);
+    protocol_layer.set_client(app_layer);
 
     /*
        let port_layer_virtual_alarm = static_init!(
@@ -494,6 +494,7 @@ pub unsafe fn reset_handler() {
 	
 	support::serialize_packet(packet, 15, &mut io_layer::BUFFER0);
 */
+
 
 
 

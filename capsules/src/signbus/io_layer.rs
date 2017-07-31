@@ -182,8 +182,8 @@ impl<'a> SignbusIOLayer<'a> {
 
     // Recv call, listen for messages and callback handles stitching multiple packets together.
     pub fn signbus_io_recv(&self, buffer: &'static mut [u8]) -> ReturnCode {
-        
-		self.recv_buf.replace(buffer);
+
+        self.recv_buf.replace(buffer);
 
         let rc = self.port_layer.i2c_slave_listen();
         if rc != ReturnCode::SUCCESS {
@@ -205,7 +205,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer<'a> {
             // Callback protocol_layer
             self.client.get().map(|client| {
                 self.recv_buf.take().map(|recv_buf| {
-					client.packet_received(recv_buf, self.length_received.get(), error);
+                    client.packet_received(recv_buf, self.length_received.get(), error);
                 });
             });
             // Reset
@@ -277,7 +277,7 @@ impl<'a> signbus::port_layer::PortLayerClient for SignbusIOLayer<'a> {
             // Callback protocol_layer
             self.client.get().map(|client| {
                 self.recv_buf.take().map(|recv_buf| {
-					client.packet_received(recv_buf, self.length_received.get(), error);
+                    client.packet_received(recv_buf, self.length_received.get(), error);
                 });
             });
 

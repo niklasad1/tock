@@ -29,7 +29,7 @@ pub struct SignbusInitialization<'a> {
     io_layer: &'a io_layer::SignbusIOLayer<'a>,
     port_layer: &'a port_layer::PortLayer,
 
-	device_address: Cell<u8>,
+    device_address: Cell<u8>,
     delay_state: Cell<DelayState>,
     send_buf: TakeCell<'static, [u8]>,
 
@@ -57,11 +57,11 @@ impl<'a> SignbusInitialization<'a> {
             io_layer: io_layer,
             port_layer: port_layer,
 
-			device_address: Cell::new(0),
+            device_address: Cell::new(0),
             delay_state: Cell::new(DelayState::Idle),
             send_buf: TakeCell::new(send_buf),
-            
-			source_address: Cell::new(0),
+
+            source_address: Cell::new(0),
             frame_type: Cell::new(support::SignbusFrameType::NotificationFrame),
             api_type: Cell::new(support::SignbusApiType::InitializationApiType),
             message_type: Cell::new(support::InitMessageType::Declare),
@@ -70,7 +70,7 @@ impl<'a> SignbusInitialization<'a> {
         }
     }
 
-	// Send declaration I2C message.
+    // Send declaration I2C message.
     pub fn signpost_initialization_declare_controller(&self) {
         debug!("Declare controller...");
 
@@ -86,7 +86,7 @@ impl<'a> SignbusInitialization<'a> {
         });
     }
 
-	// Use mod out/in gpio to request isolation.
+    // Use mod out/in gpio to request isolation.
     pub fn signpost_initialization_request_isolation(&self) {
         debug!("Request I2C isolation");
         // intialize mod out/in gpio
@@ -100,12 +100,12 @@ impl<'a> SignbusInitialization<'a> {
         self.port_layer.debug_led_on();
     }
 
-	// Intialize HAIL
+    // Intialize HAIL
     pub fn signpost_initialization_module_init(&self, i2c_address: u8) {
         debug!("Start Initialization");
         // intialize lower layers
         self.io_layer.signbus_io_init(i2c_address);
-		self.device_address.set(i2c_address);
+        self.device_address.set(i2c_address);
 
         // listen for messages
         self.recv_buf.take().map(|buf| { self.app_layer.signbus_app_recv(buf); });
@@ -145,7 +145,7 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
 impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
     // Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
-		match error {
+        match error {
             support::Error::AddressNak => debug!("Error: AddressNak"),
             support::Error::DataNak => debug!("Error: DataNak"),
             support::Error::ArbitrationLost => debug!("Error: ArbitrationNak"),
