@@ -128,7 +128,7 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
             DelayState::RequestIsolation => {
                 if self.port_layer.mod_in_read() != 0 {
                     debug!("Spurrious interrupt");
-					return;
+                    return;
                 }
                 self.signpost_initialization_declare_controller();
             }
@@ -151,17 +151,16 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
         // signpost_initialization_declared_callback
         if length < 0 {
             // check incoming_api_type and incoming_message_type
-			// self.frame_type.set(data[8] as support::SignbusFrameType);
-			// self.api_type.set(data[9] as support::SignbusApiType);
-			// self.message_type.set(data[10] as InitMessageType);
+            // self.frame_type.set(data[8] as support::SignbusFrameType);
+            // self.api_type.set(data[9] as support::SignbusApiType);
+            // self.message_type.set(data[10] as InitMessageType);
 
-			if data[1] == support::SignbusApiType::InitializationApiType as u8 &&
-				data[2] == support::InitMessageType::Declare as u8 {
-				debug!("Correct response for declaration.");
-			}
-			else {
-				debug!("Incorrect response for declaration.");
-			}
+            if data[1] == support::SignbusApiType::InitializationApiType as u8 &&
+               data[2] == support::InitMessageType::Declare as u8 {
+                debug!("Correct response for declaration.");
+            } else {
+                debug!("Incorrect response for declaration.");
+            }
 
         } else {
             debug!("Error: Length = 0");
