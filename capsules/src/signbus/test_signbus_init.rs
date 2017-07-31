@@ -21,6 +21,7 @@ pub enum DelayState {
     RequestIsolation,
 }
 
+#[derive(Clone,Copy,PartialEq)]
 pub enum InitMessageType {
     Declare = 0,
     KeyExchange = 1,
@@ -133,6 +134,7 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
             DelayState::RequestIsolation => {
                 if self.port_layer.mod_in_read() != 0 {
                     debug!("Spurrious interrupt");
+					return;
                 }
                 self.signpost_initialization_declare_controller();
             }
@@ -155,10 +157,20 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
         // signpost_initialization_declared_callback
         if length < 0 {
             // check incoming_api_type and incoming_message_type
+			// self.frame_type.set(data[8] as support::SignbusFrameType);
+			// self.api_type.set(data[9] as support::SignbusApiType);
+			// self.message_type.set(data[10] as InitMessageType);
 
-            debug!("{:?}", data);
+			if data[9] == support::SignbusApiType::InitializationApiType as u8 &&
+				data[10] == InitMessageType::Declare as u8 {
+				debug!("Correct response for declaration.");
+			}
+			else {
+				debug!("Incorrect response for declaration.");
+			}
+
         } else {
-            debug!("Length: 0");
+            debug!("Error: Length = 0");
         }
         self.send_buf.replace(data);
     }

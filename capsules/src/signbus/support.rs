@@ -22,6 +22,7 @@ pub enum MasterAction {
 }
 
 /// Signbus App Layer
+#[derive(Clone,Copy,PartialEq)]
 pub enum SignbusFrameType {
     NotificationFrame = 0,
     CommandFrame = 1,
@@ -29,6 +30,7 @@ pub enum SignbusFrameType {
     ErrorFrame = 3,
 }
 
+#[derive(Clone,Copy,PartialEq)]
 pub enum SignbusApiType {
     InitializationApiType = 1,
     StorageApiType = 2,
@@ -70,7 +72,7 @@ pub struct Packet {
     pub data: [u8; I2C_MAX_DATA_LEN],
 }
 
-/// Signbus Packet Clone triat
+/// Signbus Packet Clone trait
 impl Clone for Packet {
     fn clone(&self) -> Packet {
         *self
