@@ -44,6 +44,13 @@ pub enum SignbusApiType {
     HighestApiType = 10,
 }
 
+#[derive(Clone,Copy,PartialEq)]
+pub enum InitMessageType {
+    Declare = 0,
+    KeyExchange = 1,
+    GetMods = 2,
+}
+
 /// Signbus Packet
 #[repr(C, packed)]
 #[derive(Copy)]

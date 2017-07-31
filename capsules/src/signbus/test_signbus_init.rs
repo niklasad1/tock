@@ -21,12 +21,6 @@ pub enum DelayState {
     RequestIsolation,
 }
 
-#[derive(Clone,Copy,PartialEq)]
-pub enum InitMessageType {
-    Declare = 0,
-    KeyExchange = 1,
-    GetMods = 2,
-}
 
 pub struct SignbusInitialization<'a> {
     // USE AS NEEDED
@@ -42,7 +36,7 @@ pub struct SignbusInitialization<'a> {
     source_address: Cell<u8>,
     frame_type: Cell<support::SignbusFrameType>,
     api_type: Cell<support::SignbusApiType>,
-    message_type: Cell<InitMessageType>,
+    message_type: Cell<support::InitMessageType>,
     length: Cell<usize>,
     recv_buf: TakeCell<'static, [u8]>,
 }
@@ -65,7 +59,7 @@ impl<'a> SignbusInitialization<'a> {
             source_address: Cell::new(0),
             frame_type: Cell::new(support::SignbusFrameType::NotificationFrame),
             api_type: Cell::new(support::SignbusApiType::InitializationApiType),
-            message_type: Cell::new(InitMessageType::Declare),
+            message_type: Cell::new(support::InitMessageType::Declare),
             length: Cell::new(0),
             recv_buf: TakeCell::new(recv_buf),
 
@@ -83,7 +77,7 @@ impl<'a> SignbusInitialization<'a> {
             self.app_layer.signbus_app_send(ModuleAddress::Controller as u8,
                                             support::SignbusFrameType::CommandFrame,
                                             support::SignbusApiType::InitializationApiType,
-                                            InitMessageType::Declare as u8,
+                                            support::InitMessageType::Declare as u8,
                                             1,
                                             buf);
         });
@@ -119,14 +113,14 @@ impl<'a> SignbusInitialization<'a> {
 impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
     // Called when the mod_in GPIO goes low.
     fn mod_in_interrupt(&self) {
-        //debug!("Interrupt!");
+        debug!("Interrupt!");
         self.delay_state.set(DelayState::RequestIsolation);
         self.port_layer.delay_ms(50);
     }
 
     // Called when a delay_ms has completed.
     fn delay_complete(&self) {
-        //debug!("Fired!");
+        debug!("Fired!");
         match self.delay_state.get() {
 
             DelayState::Idle => {}
@@ -161,8 +155,8 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
 			// self.api_type.set(data[9] as support::SignbusApiType);
 			// self.message_type.set(data[10] as InitMessageType);
 
-			if data[9] == support::SignbusApiType::InitializationApiType as u8 &&
-				data[10] == InitMessageType::Declare as u8 {
+			if data[1] == support::SignbusApiType::InitializationApiType as u8 &&
+				data[2] == support::InitMessageType::Declare as u8 {
 				debug!("Correct response for declaration.");
 			}
 			else {
