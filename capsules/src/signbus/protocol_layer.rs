@@ -76,8 +76,8 @@ impl<'a> SignbusProtocolLayer<'a> {
 impl<'a> io_layer::IOLayerClient for SignbusProtocolLayer<'a> {
     // Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
-        // TODO: decryption not available in Rust
-        self.client.get().map(move |client| { client.packet_received(data, length, error); });
+		// TODO: decryption not available in Rust
+		self.client.get().map(move |client| { client.packet_received(data, length, error); });
     }
 
     // Called when an I2C master write command is complete.

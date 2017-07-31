@@ -6,8 +6,8 @@ use kernel::common::take_cell::TakeCell;
 use signbus;
 use signbus::{io_layer, support, app_layer, port_layer, protocol_layer};
 
-pub static mut BUFFER0: [u8; 255] = [0; 255];
-pub static mut BUFFER1: [u8; 255] = [0; 255];
+pub static mut BUFFER0: [u8; 256] = [0; 256];
+pub static mut BUFFER1: [u8; 256] = [0; 256];
 
 pub enum ModuleAddress {
     Controller = 0x20,
@@ -29,6 +29,7 @@ pub struct SignbusInitialization<'a> {
     io_layer: &'a io_layer::SignbusIOLayer<'a>,
     port_layer: &'a port_layer::PortLayer,
 
+	device_address: Cell<u8>,
     delay_state: Cell<DelayState>,
     send_buf: TakeCell<'static, [u8]>,
 
@@ -56,23 +57,25 @@ impl<'a> SignbusInitialization<'a> {
             io_layer: io_layer,
             port_layer: port_layer,
 
-            source_address: Cell::new(0),
+			device_address: Cell::new(0),
+            delay_state: Cell::new(DelayState::Idle),
+            send_buf: TakeCell::new(send_buf),
+            
+			source_address: Cell::new(0),
             frame_type: Cell::new(support::SignbusFrameType::NotificationFrame),
             api_type: Cell::new(support::SignbusApiType::InitializationApiType),
             message_type: Cell::new(support::InitMessageType::Declare),
             length: Cell::new(0),
             recv_buf: TakeCell::new(recv_buf),
-
-            delay_state: Cell::new(DelayState::Idle),
-            send_buf: TakeCell::new(send_buf),
         }
     }
 
+	// Send declaration I2C message.
     pub fn signpost_initialization_declare_controller(&self) {
         debug!("Declare controller...");
 
         self.send_buf.take().map(|buf| {
-            buf[0] = 0x32;
+            buf[0] = self.device_address.get();
 
             self.app_layer.signbus_app_send(ModuleAddress::Controller as u8,
                                             support::SignbusFrameType::CommandFrame,
@@ -83,6 +86,7 @@ impl<'a> SignbusInitialization<'a> {
         });
     }
 
+	// Use mod out/in gpio to request isolation.
     pub fn signpost_initialization_request_isolation(&self) {
         debug!("Request I2C isolation");
         // intialize mod out/in gpio
@@ -96,11 +100,12 @@ impl<'a> SignbusInitialization<'a> {
         self.port_layer.debug_led_on();
     }
 
-
+	// Intialize HAIL
     pub fn signpost_initialization_module_init(&self, i2c_address: u8) {
         debug!("Start Initialization");
         // intialize lower layers
         self.io_layer.signbus_io_init(i2c_address);
+		self.device_address.set(i2c_address);
 
         // listen for messages
         self.recv_buf.take().map(|buf| { self.app_layer.signbus_app_recv(buf); });
@@ -113,14 +118,14 @@ impl<'a> SignbusInitialization<'a> {
 impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
     // Called when the mod_in GPIO goes low.
     fn mod_in_interrupt(&self) {
-        debug!("Interrupt!");
+        //debug!("Interrupt!");
         self.delay_state.set(DelayState::RequestIsolation);
         self.port_layer.delay_ms(50);
     }
 
     // Called when a delay_ms has completed.
     fn delay_complete(&self) {
-        debug!("Fired!");
+        //debug!("Fired!");
         match self.delay_state.get() {
 
             DelayState::Idle => {}
@@ -140,8 +145,7 @@ impl<'a> port_layer::PortLayerClient2 for SignbusInitialization<'a> {
 impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
     // Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
-
-        match error {
+		match error {
             support::Error::AddressNak => debug!("Error: AddressNak"),
             support::Error::DataNak => debug!("Error: DataNak"),
             support::Error::ArbitrationLost => debug!("Error: ArbitrationNak"),
@@ -149,7 +153,7 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
         };
 
         // signpost_initialization_declared_callback
-        if length < 0 {
+        if length > 0 {
             // check incoming_api_type and incoming_message_type
             // self.frame_type.set(data[8] as support::SignbusFrameType);
             // self.api_type.set(data[9] as support::SignbusApiType);

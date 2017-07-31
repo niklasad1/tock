@@ -10,7 +10,8 @@
 //! let app_layer = static_init!(
 //!     capsules::signbus::app_layer::SignbusAppLayer<'static>,
 //!     capsules::signbus::app_layer::SignbusAppLayer::new(protocol_layer,
-//!             &mut capsules::signbus::app_layer::BUFFER0
+//!             &mut capsules::signbus::app_layer::BUFFER0,
+//!             &mut capsules::signbus::app_layer::BUFFER1
 //! ));
 //!
 //! ```
@@ -27,8 +28,8 @@ use signbus;
 use signbus::{protocol_layer, support, test_signbus_init};
 
 /// Buffers used to concatenate message information.
-pub static mut BUFFER0: [u8; 255] = [0; 255];
-pub static mut BUFFER1: [u8; 255] = [0; 255];
+pub static mut BUFFER0: [u8; 256] = [0; 256];
+pub static mut BUFFER1: [u8; 256] = [0; 256];
 
 /// Application/ userland buffers and user callback.
 // TODO: implement userland interaction/ syscalls
@@ -134,7 +135,7 @@ impl<'a> SignbusAppLayer<'a> {
 impl<'a> protocol_layer::ProtocolLayerClient for SignbusAppLayer<'a> {
     // Called when a new packet is received over I2C.
     fn packet_received(&self, data: &'static mut [u8], length: usize, error: support::Error) {
-        self.client.get().map(move |client| { client.packet_received(data, length, error); });
+		self.client.get().map(move |client| { client.packet_received(data, length, error); });
     }
 
     // Called when an I2C master write command is complete.

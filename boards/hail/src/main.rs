@@ -400,6 +400,8 @@ pub unsafe fn reset_handler() {
         		&mut capsules::signbus::app_layer::BUFFER1
     ));
 
+	protocol_layer.set_client(app_layer);
+
     /*
        let port_layer_virtual_alarm = static_init!(
        VirtualMuxAlarm<'static, sam4l::ast::Ast>,
