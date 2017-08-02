@@ -1,6 +1,6 @@
-## Signbus Communication Layers
+# Signbus Communication Layers
 
-# app_layer
+## app_layer
 Userland buffers and callbacks.
 Concatenate app information (frame_type, api_type) to message.
  
@@ -15,7 +15,7 @@ Concatenate app information (frame_type, api_type) to message.
       fn signbus_app_recv();
     }
 
-# protocol_layer
+## protocol_layer
 Encrypt/ decrypt message and concatenate HMAC to message.
 *Not impelmented.*
 
@@ -31,7 +31,7 @@ Encrypt/ decrypt message and concatenate HMAC to message.
     }
 
 
-# io_layer
+## io_layer
 Send/ receive Signbus packets and concatenate fragmented messages together.
 
     pub trait IOLayerClient {
@@ -47,7 +47,7 @@ Send/ receive Signbus packets and concatenate fragmented messages together.
     }
 
 
-# port_layer
+## port_layer
 Send/ receive I2C MTU (255 bytes). Communites with I2C driver.
 Ability to use gpio and timer.
 
