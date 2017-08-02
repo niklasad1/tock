@@ -336,7 +336,8 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwSlaveClient for SignbusPortLay
         debug!("I2CHwSlaveClient read_expected for SignbusPortLayer");
     }
 
-    // Slave received message, but does not have buffer. Call write_receive again to initiate callback.
+    // Slave received message, but does not have buffer. Call write_receive
+    // again to initiate callback.
     fn write_expected(&self) {
         self.i2c_recv
             .take()

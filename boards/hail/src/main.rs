@@ -355,7 +355,7 @@ pub unsafe fn reset_handler() {
 
     // signbus port_layer
     let port_layer = static_init!(
-        capsules::signbus::port_layer::SignbusPortLayer<'static, 
+        capsules::signbus::port_layer::SignbusPortLayer<'static,
 			VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
 		capsules::signbus::port_layer::SignbusPortLayer::new(
             &sam4l::i2c::I2C1,
@@ -491,9 +491,14 @@ pub unsafe fn reset_handler() {
         header: header,
         data:   &mut io_layer::BUFFER2,
     };
-	
+
 	support::serialize_packet(packet, 15, &mut io_layer::BUFFER0);
 */
+
+
+
+
+
 
 
 

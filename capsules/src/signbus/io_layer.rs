@@ -102,7 +102,8 @@ impl<'a> SignbusIOLayer<'a> {
     }
 
 
-    // Send call, callback will handle sending multiple packets if data is longer than I2C_MAX_DATA_LEN.
+    // Send call, callback will handle sending multiple packets if data is
+    // longer than I2C_MAX_DATA_LEN.
     pub fn signbus_io_send(&self,
                            dest: u8,
                            encrypted: bool,
@@ -270,7 +271,8 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
             self.length_received.set(self.length_received.get() + remainder);
 
             //testing: sanity check
-            //if self.length_received.get() + support::HEADER_SIZE == packet.header.length as usize {
+            //if (self.length_received.get() + support::HEADER_SIZE
+            //      == packet.header.length as usize {
             //	debug!("PortLayerClient length received correct.")
             //}
 
