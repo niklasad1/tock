@@ -1,5 +1,14 @@
 # Signbus Communication Layers
 
+
+-\ USERLAND <br />
+&nbsp;&nbsp;  -\ app_layer <br />
+&nbsp;&nbsp;&nbsp;&nbsp;    -\ protocol_layer <br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    -\ io_layer <br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        -\ port_layer <br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        -\ I2C DRIVER <br />
+
+
 ## app_layer
 Userland buffers and callbacks.
 Concatenate app information (frame_type, api_type) to message.
@@ -17,7 +26,7 @@ Concatenate app information (frame_type, api_type) to message.
 
 ## protocol_layer
 Encrypt/ decrypt message and concatenate HMAC to message.
-*Not impelmented.*
+*Not implemented.*
 
     pub trait ProtocolLayerClient {
       fn packet_received();
@@ -48,7 +57,7 @@ Send/ receive Signbus packets and concatenate fragmented messages together.
 
 
 ## port_layer
-Send/ receive I2C MTU (255 bytes). Communites with I2C driver.
+Send/ receive I2C MTU (255 bytes). Communicates with I2C driver.
 Ability to use gpio and timer.
 
     pub trait PortLayerClientI2C {
