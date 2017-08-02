@@ -14,13 +14,10 @@
 //! ```
 
 use core::cell::Cell;
-use kernel::{AppId, AppSlice, Callback, Driver, ReturnCode, Shared};
-use kernel::common::take_cell::{MapCell, TakeCell};
-use kernel::hil;
+use kernel::ReturnCode;
 
 // Capsules
-use signbus;
-use signbus::{support, io_layer, protocol_layer, app_layer};
+use signbus::{support, io_layer, app_layer};
 
 /// Buffers not present because encryption and decryption not available.
 

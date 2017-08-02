@@ -21,36 +21,6 @@ pub enum MasterAction {
     Write,
 }
 
-/// Signbus App Layer
-#[derive(Clone,Copy,PartialEq)]
-pub enum SignbusFrameType {
-    NotificationFrame = 0,
-    CommandFrame = 1,
-    ResponseFrame = 2,
-    ErrorFrame = 3,
-}
-
-#[derive(Clone,Copy,PartialEq)]
-pub enum SignbusApiType {
-    InitializationApiType = 1,
-    StorageApiType = 2,
-    NetworkingApiType = 3,
-    ProcessingApiType = 4,
-    EnergyApiType = 5,
-    TimeLocationApiType = 6,
-    EdisonApiType = 7,
-    JsonApiType = 8,
-    WatchdogApiType = 9,
-    HighestApiType = 10,
-}
-
-#[derive(Clone,Copy,PartialEq)]
-pub enum InitMessageType {
-    Declare = 0,
-    KeyExchange = 1,
-    GetMods = 2,
-}
-
 /// Signbus Packet
 #[repr(C, packed)]
 #[derive(Copy)]
@@ -128,7 +98,6 @@ pub fn serialize_packet(packet: Packet, data_len: usize, buf: &mut [u8]) {
         buf[i + HEADER_SIZE] = *c;
     }
 
-    //debug!("{:?}", buf);
 }
 
 /// [u8] -> Signbus packet
@@ -154,9 +123,6 @@ pub fn unserialize_packet(buf: &[u8]) -> Packet {
         length: length,
         fragment_offset: fragment_offset,
     };
-
-    //debug!("header.length: {}", header.length);
-    //debug!("header.offset: {}", header.fragment_offset);
 
     if header.flags.is_fragment == 1 {
         // Copy data from slice to fixed sized array to package into packet

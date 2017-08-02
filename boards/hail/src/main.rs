@@ -10,16 +10,15 @@
 extern crate capsules;
 extern crate cortexm4;
 extern crate compiler_builtins;
-#[macro_use(debug, static_init)]
+#[macro_use(static_init)]
 extern crate kernel;
 extern crate sam4l;
 
 use capsules::console::{self, Console};
 use capsules::nrf51822_serialization::{self, Nrf51822Serialization};
-use capsules::signbus;
 use capsules::timer::TimerDriver;
 use capsules::virtual_alarm::{MuxAlarm, VirtualMuxAlarm};
-use capsules::virtual_i2c::{I2CDevice, MuxI2C};
+//use capsules::virtual_i2c::{I2CDevice, MuxI2C};
 use capsules::virtual_spi::{VirtualSpiMasterDevice, MuxSpiMaster};
 use kernel::Platform;
 use kernel::hil;
@@ -542,7 +541,6 @@ pub unsafe fn reset_handler() {
         capsules::signbus::test_signbus_init::SignbusInitialization<'static>,
         capsules::signbus::test_signbus_init::SignbusInitialization::new(
 				app_layer,
-				protocol_layer,
 				io_layer,
 				port_layer,
               	&mut capsules::signbus::test_signbus_init::BUFFER0,

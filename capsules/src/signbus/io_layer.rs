@@ -16,11 +16,8 @@
 //! ```
 
 use core::cell::Cell;
-use core::mem;
-use core::slice;
 use kernel::ReturnCode;
-use kernel::common::take_cell::{MapCell, TakeCell};
-use kernel::hil;
+use kernel::common::take_cell::TakeCell;
 
 // Capsules
 use signbus;
@@ -110,8 +107,8 @@ impl<'a> SignbusIOLayer<'a> {
                            data: &'static mut [u8],
                            len: usize)
                            -> ReturnCode {
-        //debug!("Signbus_Interface_send");
-        self.sequence_number.set(self.sequence_number.get() + 1);
+        
+		self.sequence_number.set(self.sequence_number.get() + 1);
 
         // Network Flags
         let flags: support::SignbusNetworkFlags = support::SignbusNetworkFlags {
@@ -199,14 +196,13 @@ impl<'a> SignbusIOLayer<'a> {
 impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
     // Packet received, decipher packet and if needed, stitch packets together or callback upward.
     fn packet_received(&self, packet: support::Packet, length: u8, error: support::Error) {
-        debug!("PortLayerClient packet_received in io_layer");
 
         // Error checking
         if error != support::Error::CommandComplete {
             // Callback protocol_layer
             self.client.get().map(|client| {
                 self.recv_buf.take().map(|recv_buf| {
-                    client.packet_received(recv_buf, self.length_received.get(), error);
+                    client.packet_received(recv_buf, length as usize, error);
                 });
             });
             // Reset
@@ -222,11 +218,6 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
         let offset = packet.header.fragment_offset as usize;
         let remainder = packet.header.length as usize - support::HEADER_SIZE -
                         packet.header.fragment_offset as usize;
-
-        //debug!("src: {}", src);
-        //debug!("offset: {}", offset);
-        //debug!("more_packets: {}", more_packets);
-        //debug!("remainder: {}", remainder);
 
         // First packet
         if self.length_received.get() == 0 {
@@ -270,12 +261,6 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
             });
             self.length_received.set(self.length_received.get() + remainder);
 
-            //testing: sanity check
-            //if (self.length_received.get() + support::HEADER_SIZE
-            //      == packet.header.length as usize {
-            //	debug!("PortLayerClient length received correct.")
-            //}
-
             // Callback protocol_layer
             self.client.get().map(|client| {
                 self.recv_buf.take().map(|recv_buf| {
@@ -291,7 +276,6 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
 
     // Packet has finished sending. If needed, send more or callback upward.
     fn packet_sent(&self, mut packet: support::Packet, error: signbus::support::Error) {
-        debug!("PortLayerClient packet_sent in io_layer");
 
         // If error, stop sending and propogate up
         if error != support::Error::CommandComplete {
@@ -348,6 +332,5 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
 
     fn packet_read_from_slave(&self) {
         // TODO: implement slave write/ master read
-        debug!("PortLayerClient packet_read_from_slave in io_layer");
     }
 }

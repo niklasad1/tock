@@ -3,16 +3,45 @@
 
 use core::cell::Cell;
 use kernel::common::take_cell::TakeCell;
-use signbus;
-use signbus::{io_layer, support, app_layer, port_layer, protocol_layer};
+use signbus::{io_layer, support, app_layer, port_layer};
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
 
+#[derive(Clone,Copy,PartialEq)]
 pub enum ModuleAddress {
     Controller = 0x20,
     Storage = 0x21,
     Radio = 0x22,
+}
+
+#[derive(Clone,Copy,PartialEq)]
+pub enum SignbusFrameType {
+    NotificationFrame = 0,
+    CommandFrame = 1,
+    ResponseFrame = 2,
+    ErrorFrame = 3,
+}
+
+#[derive(Clone,Copy,PartialEq)]
+pub enum SignbusApiType {
+    InitializationApiType = 1,
+    StorageApiType = 2,
+    NetworkingApiType = 3,
+    ProcessingApiType = 4,
+    EnergyApiType = 5,
+    TimeLocationApiType = 6,
+    EdisonApiType = 7,
+    JsonApiType = 8,
+    WatchdogApiType = 9,
+    HighestApiType = 10,
+}
+
+#[derive(Clone,Copy,PartialEq)]
+pub enum InitMessageType {
+    Declare = 0,
+    KeyExchange = 1,
+    GetMods = 2,
 }
 
 #[derive(Clone,Copy,PartialEq)]
@@ -21,30 +50,22 @@ pub enum DelayState {
     RequestIsolation,
 }
 
-
 pub struct SignbusInitialization<'a> {
-    // USE AS NEEDED
+	// app_layer used to send/ recv messages
     app_layer: &'a app_layer::SignbusAppLayer<'a>,
-    protocol_layer: &'a protocol_layer::SignbusProtocolLayer<'a>,
-    io_layer: &'a io_layer::SignbusIOLayer<'a>,
-    port_layer: &'a port_layer::PortLayer,
+    // io_layer used to init
+	io_layer: &'a io_layer::SignbusIOLayer<'a>,
+    // port_layer used for gpio and timer
+	port_layer: &'a port_layer::PortLayer,
 
     device_address: Cell<u8>,
     delay_state: Cell<DelayState>,
     send_buf: TakeCell<'static, [u8]>,
-
-    // INCOMING MESSAGE STORAGE
-    source_address: Cell<u8>,
-    frame_type: Cell<support::SignbusFrameType>,
-    api_type: Cell<support::SignbusApiType>,
-    message_type: Cell<support::InitMessageType>,
-    length: Cell<usize>,
     recv_buf: TakeCell<'static, [u8]>,
 }
 
 impl<'a> SignbusInitialization<'a> {
     pub fn new(app_layer: &'a app_layer::SignbusAppLayer,
-               protocol_layer: &'a protocol_layer::SignbusProtocolLayer,
                io_layer: &'a io_layer::SignbusIOLayer,
                port_layer: &'a port_layer::PortLayer,
                send_buf: &'static mut [u8],
@@ -53,19 +74,12 @@ impl<'a> SignbusInitialization<'a> {
 
         SignbusInitialization {
             app_layer: app_layer,
-            protocol_layer: protocol_layer,
             io_layer: io_layer,
             port_layer: port_layer,
 
             device_address: Cell::new(0),
             delay_state: Cell::new(DelayState::Idle),
             send_buf: TakeCell::new(send_buf),
-
-            source_address: Cell::new(0),
-            frame_type: Cell::new(support::SignbusFrameType::NotificationFrame),
-            api_type: Cell::new(support::SignbusApiType::InitializationApiType),
-            message_type: Cell::new(support::InitMessageType::Declare),
-            length: Cell::new(0),
             recv_buf: TakeCell::new(recv_buf),
         }
     }
@@ -75,12 +89,13 @@ impl<'a> SignbusInitialization<'a> {
         debug!("Declare controller...");
 
         self.send_buf.take().map(|buf| {
-            buf[0] = self.device_address.get();
+            // Will only work for 0x32 because of concatenated HMAC
+			buf[0] = self.device_address.get();
 
             self.app_layer.signbus_app_send(ModuleAddress::Controller as u8,
-                                            support::SignbusFrameType::CommandFrame,
-                                            support::SignbusApiType::InitializationApiType,
-                                            support::InitMessageType::Declare as u8,
+                                            SignbusFrameType::CommandFrame as u8,
+                                            SignbusApiType::InitializationApiType as u8,
+                                            InitMessageType::Declare as u8,
                                             1,
                                             buf);
         });
@@ -155,12 +170,8 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
         // signpost_initialization_declared_callback
         if length > 0 {
             // check incoming_api_type and incoming_message_type
-            // self.frame_type.set(data[8] as support::SignbusFrameType);
-            // self.api_type.set(data[9] as support::SignbusApiType);
-            // self.message_type.set(data[10] as InitMessageType);
-
-            if data[1] == support::SignbusApiType::InitializationApiType as u8 &&
-               data[2] == support::InitMessageType::Declare as u8 {
+            if data[1] == SignbusApiType::InitializationApiType as u8 &&
+               data[2] == InitMessageType::Declare as u8 {
                 debug!("Correct response for declaration.");
             } else {
                 debug!("Incorrect response for declaration.");
@@ -173,7 +184,12 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
     }
     // Called when an I2C master write command is complete.
     fn packet_sent(&self, data: &'static mut [u8], error: support::Error) {
-        self.send_buf.replace(data);
+		
+		if error != support::Error::CommandComplete {
+			debug!("Error: Packet sent incomplete");
+		}
+
+		self.send_buf.replace(data);
     }
 
 

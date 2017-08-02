@@ -18,47 +18,21 @@
 
 
 use core::cell::Cell;
-use kernel::{AppId, AppSlice, Callback, Driver, ReturnCode, Shared};
-use kernel::common::take_cell::{MapCell, TakeCell};
-use kernel::hil;
-use kernel::hil::gpio;
-use kernel::hil::time;
+use kernel::ReturnCode;
+use kernel::common::take_cell::TakeCell;
+
 // Capsules
-use signbus;
 use signbus::{protocol_layer, support, test_signbus_init};
 
 /// Buffers used to concatenate message information.
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
 
-/// Application/ userland buffers and user callback.
-// TODO: implement userland interaction/ syscalls
-pub struct App {
-    callback: Option<Callback>,
-    master_tx_buffer: Option<AppSlice<Shared, u8>>,
-    master_rx_buffer: Option<AppSlice<Shared, u8>>,
-    slave_tx_buffer: Option<AppSlice<Shared, u8>>,
-    slave_rx_buffer: Option<AppSlice<Shared, u8>>,
-}
-
-impl Default for App {
-    fn default() -> App {
-        App {
-            callback: None,
-            master_tx_buffer: None,
-            master_rx_buffer: None,
-            slave_tx_buffer: None,
-            slave_rx_buffer: None,
-        }
-    }
-}
-
 /// SignbusAppLayer to handle userland interaction and adding message type information.
 pub struct SignbusAppLayer<'a> {
     protocol_layer: &'a protocol_layer::SignbusProtocolLayer<'a>,
     payload: TakeCell<'static, [u8]>,
     send_buf: TakeCell<'static, [u8]>,
-    app: MapCell<App>,
     client: Cell<Option<&'static test_signbus_init::SignbusInitialization<'static>>>,
 }
 
@@ -84,7 +58,6 @@ impl<'a> SignbusAppLayer<'a> {
             protocol_layer: protocol_layer,
             payload: TakeCell::new(payload),
             send_buf: TakeCell::new(send_buf),
-            app: MapCell::new(App::default()),
             client: Cell::new(None),
         }
     }
@@ -98,8 +71,8 @@ impl<'a> SignbusAppLayer<'a> {
 
     pub fn signbus_app_send(&self,
                             address: u8,
-                            frame_type: support::SignbusFrameType,
-                            api_type: support::SignbusApiType,
+                            frame_type: u8,
+                            api_type: u8,
                             message_type: u8,
                             message_length: usize,
                             message: &'static mut [u8])
