@@ -85,5 +85,6 @@ impl<'a> io_layer::IOLayerClient for SignbusProtocolLayer<'a> {
     // Called when an I2C slave read has completed.
     fn packet_read_from_slave(&self) {
         // TODO: implement slave write/ master read
+		unimplemented!("Implement slave write/ master read.");
     }
 }

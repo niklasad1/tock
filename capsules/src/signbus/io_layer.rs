@@ -332,5 +332,6 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
 
     fn packet_read_from_slave(&self) {
         // TODO: implement slave write/ master read
+		unimplemented!("Implement slave write/ master read.");
     }
 }

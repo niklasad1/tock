@@ -83,7 +83,7 @@ pub trait PortLayer {
     fn i2c_slave_read_setup(&self, buf: support::Packet, len: usize) -> ReturnCode;
     fn mod_out_set(&self) -> ReturnCode;
     fn mod_out_clear(&self) -> ReturnCode;
-    fn mod_in_read(&self) -> usize;
+    fn mod_in_read(&self) -> ReturnCode;
     fn mod_in_enable_interrupt(&self) -> ReturnCode;
     fn mod_in_disable_interrupt(&self) -> ReturnCode;
     fn delay_ms(&self, time: u32) -> ReturnCode;
@@ -142,6 +142,7 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
 
     // Do a write to another I2C device
     fn i2c_master_write(&self, i2c_address: u8, packet: support::Packet, len: usize) -> ReturnCode {
+        self.master_action.set(support::MasterAction::Write);
 
         self.i2c_send.take().map(|buf| {
             // packet -> buffer
@@ -187,7 +188,6 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
             hil::i2c::I2CMaster::write(self.i2c, i2c_address, buf, 44 as u8);
         });
 
-        self.master_action.set(support::MasterAction::Write);
         ReturnCode::SUCCESS
     }
 
@@ -207,9 +207,11 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
     }
 
 	// Send messages as slave.
-	// TODO: Needs to be tested.
-    fn i2c_slave_read_setup(&self, packet: support::Packet, len: usize) -> ReturnCode {
-        
+    fn i2c_slave_read_setup(&self, _ : support::Packet, len: usize) -> ReturnCode {
+		self.master_action.set(support::MasterAction::Read(len as u8));
+		unimplemented!("Implement slave write/ master read.");
+/*
+		TODO: Needs to be tested. 
 		self.i2c_send.take().map(|buf| {
             // packet -> buffer
             support::serialize_packet(packet, len - support::HEADER_SIZE, buf);
@@ -217,8 +219,9 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
 			hil::i2c::I2CSlave::read_send(self.i2c, buf, len as u8);
 		});
 		
-		self.master_action.set(support::MasterAction::Read(len as u8));
         ReturnCode::SUCCESS
+*/
+
     }
 
     fn mod_out_set(&self) -> ReturnCode {
@@ -233,11 +236,9 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
         ReturnCode::SUCCESS
     }
 
-    fn mod_in_read(&self) -> usize {
+    fn mod_in_read(&self) -> ReturnCode {
         let pin_state = self.mod_in_pin.read();
-		// TODO: How to use SuccessWithValue?
-        //ReturnCode::SuccessWithValue {value: pin_state as usize}
-        return pin_state as usize;
+        ReturnCode::SuccessWithValue {value: pin_state as usize}
     }
 
     fn mod_in_enable_interrupt(&self) -> ReturnCode {
@@ -298,10 +299,11 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwMasterClient for SignbusPortLa
                 });
 
             }
-
-            support::MasterAction::Read(read_len) => {
-			    // TODO: Implement slave write/ master read.
-                // TODO: Need to replace i2c_recv on a master read.
+            
+			support::MasterAction::Read(_) => {
+				unimplemented!("Implement slave write/ master read.");					
+/*
+				// TODO: Need to replace i2c_recv on a master read.
 				// TODO: Needs to be tested.
 				self.i2c_recv.take().map(|i2c_recv| {
 					let d = &mut i2c_recv.as_mut()[0..(read_len as usize)];
@@ -310,8 +312,10 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwMasterClient for SignbusPortLa
                     	d[i] = *c;
                     }
 				});
+*/
 			}
         }
+
 
         // Check to see if we were listening as an I2C slave and should re-enable that mode
         if self.listening.get() {
@@ -332,7 +336,7 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwSlaveClient for SignbusPortLay
         match transmission_type {
             hil::i2c::SlaveTransmissionType::Read => {
                 //TODO: Implement slave write/ master read.
-            	unimplemented!();
+            	unimplemented!("Implement slave write/ master read.");
 			}
 
             // Master write/ slave read.
@@ -348,7 +352,7 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwSlaveClient for SignbusPortLay
 
     fn read_expected(&self) {
         // TODO: Implement slave write/ master read.
-    	unimplemented!();
+		unimplemented!("Implement slave write/ master read.");
 	}
 
     // Slave received message, but does not have buffer. Call write_receive

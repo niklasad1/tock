@@ -2,12 +2,14 @@
 // By: Justin Hsieh
 
 use core::cell::Cell;
+use kernel::ReturnCode;
 use kernel::common::take_cell::TakeCell;
 use signbus::{io_layer, support, app_layer, port_layer};
 
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
 
+// Signpost specific enums used only for testing.
 #[derive(Clone,Copy,PartialEq)]
 pub enum ModuleAddress {
     Controller = 0x20,
@@ -133,24 +135,30 @@ impl<'a> SignbusInitialization<'a> {
 impl<'a> port_layer::PortLayerClientGPIOTimer for SignbusInitialization<'a> {
     // Called when the mod_in GPIO goes low.
     fn mod_in_interrupt(&self) {
-        //debug!("Interrupt!");
         self.delay_state.set(DelayState::RequestIsolation);
         self.port_layer.delay_ms(50);
     }
 
     // Called when a delay_ms has completed.
     fn delay_complete(&self) {
-        //debug!("Fired!");
         match self.delay_state.get() {
 
             DelayState::Idle => {}
 
             DelayState::RequestIsolation => {
-                if self.port_layer.mod_in_read() != 0 {
-                    debug!("Spurrious interrupt");
-                    return;
+                match self.port_layer.mod_in_read() {
+                    
+					ReturnCode::SuccessWithValue{value} => {
+						if value != 0 {
+							debug!("Spurrious interrupt");
+						} 
+						else {
+							self.signpost_initialization_declare_controller();
+						}	
+					}
+			
+					_ => {}
                 }
-                self.signpost_initialization_declare_controller();
             }
         }
     }
