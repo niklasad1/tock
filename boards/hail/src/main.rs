@@ -524,8 +524,6 @@ pub unsafe fn reset_handler() {
     // port_layer.enable_interrupt();
 */
 
-    // initialization test
-
     let signbus = static_init!(
         capsules::signbus::test_signbus_init::SignbusInitialization<'static>,
         capsules::signbus::test_signbus_init::SignbusInitialization::new(
@@ -538,6 +536,8 @@ pub unsafe fn reset_handler() {
 
     port_layer.set_init_client(signbus);
     app_layer.set_client(signbus);
+
+	// HAIL initialization
     signbus.signpost_initialization_module_init(0x32);
 
     //debug!("Initialization complete. Entering main loop");
