@@ -492,21 +492,6 @@ pub unsafe fn reset_handler() {
     };
 
 	support::serialize_packet(packet, 15, &mut io_layer::BUFFER0);
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // slave_listen test
     //io_layer.signbus_io_init(0x20);
@@ -537,6 +522,7 @@ pub unsafe fn reset_handler() {
 
     // gpio enable_interrupt test
     // port_layer.enable_interrupt();
+*/
 
     // initialization test
 
