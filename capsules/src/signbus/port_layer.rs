@@ -309,7 +309,6 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwMasterClient for SignbusPortLa
 				// TODO: Needs to be tested.
 				self.i2c_recv.take().map(|i2c_recv| {
 					let d = &mut i2c_recv.as_mut()[0..(read_len as usize)];
-					
                     for (i, c) in buffer[0..(read_len as usize)].iter().enumerate() {
                     	d[i] = *c;
                     }
