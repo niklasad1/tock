@@ -464,68 +464,8 @@ pub unsafe fn reset_handler() {
     // Uncomment to measure overheads for TakeCell and MapCell:
     // test_take_map_cell::test_take_map_cell();
 
-    // TESTS
-/*
-	// serial_packet test
-	// Network Flags
-    let flags: support::SignbusNetworkFlags = support::SignbusNetworkFlags {
-        is_fragment:    false,
-        is_encrypted:   false,
-        rsv_wire_bit5:  false,
-        rsv_wire_bit4:  false,
-        version:        0x1,
-    };
-
-    // Network Header
-    let header: support::SignbusNetworkHeader = support::SignbusNetworkHeader {
-        flags:              flags,
-        src:                0x20,
-        sequence_number:    15,
-        length:             12 + 15,
-        fragment_offset:    0,
-    };
-
-    // Packet
-    let mut packet: support::Packet = support::Packet {
-        header: header,
-        data:   &mut io_layer::BUFFER2,
-    };
-
-	support::serialize_packet(packet, 15, &mut io_layer::BUFFER0);
-
-    // slave_listen test
-    //io_layer.signbus_io_init(0x20);
-    //io_layer.signbus_io_recv(&mut io_layer::BUFFER0);
-
-    // slave listen test2 (2 packets)
-    //io_layer.signbus_io_init(0x20);
-    //io_layer.signbus_io_recv(&mut io_layer::BUFFER3);
-
-    // master_write test
-    //io_layer.signbus_io_init(0x20);
-    //io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 15);
-
-    // master_write test2 (2 packets)
-    //io_layer.signbus_io_init(0x20);
-    //io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 255);
-
-    // master_write test2 (3 packets)
-    //io_layer.signbus_io_init(0x20);
-    //io_layer.signbus_io_send(0x21, false, &mut io_layer::BUFFER2, 512);
-
-    // alarm test
-    //port_layer.delay(2);
-
-    // gpio set/clear test
-    //port_layer.clear();
-    //port_layer.set();
-
-    // gpio enable_interrupt test
-    // port_layer.enable_interrupt();
-*/
-
-
-    let signbus = static_init!(
+    // Signbus Initialization
+	let signbus = static_init!(
         capsules::signbus::test_signbus_init::SignbusInitialization<'static>,
         capsules::signbus::test_signbus_init::SignbusInitialization::new(
 				app_layer,
@@ -533,13 +473,14 @@ pub unsafe fn reset_handler() {
 				port_layer,
               	&mut capsules::signbus::test_signbus_init::BUFFER0,
               	&mut capsules::signbus::test_signbus_init::BUFFER1,
-     ));
+    ));
 
     port_layer.set_init_client(signbus);
     app_layer.set_client(signbus);
 
     // HAIL initialization
-    signbus.signpost_initialization_module_init(0x32);
+    // Only 0x32 will work because of HMAC
+	signbus.signpost_initialization_module_init(0x32);
 
     //debug!("Initialization complete. Entering main loop");
     extern "C" {
