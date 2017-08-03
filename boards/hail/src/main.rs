@@ -465,7 +465,7 @@ pub unsafe fn reset_handler() {
     // test_take_map_cell::test_take_map_cell();
 
     // Signbus Initialization
-	let signbus = static_init!(
+    let signbus = static_init!(
         capsules::signbus::test_signbus_init::SignbusInitialization<'static>,
         capsules::signbus::test_signbus_init::SignbusInitialization::new(
 				app_layer,
@@ -480,7 +480,7 @@ pub unsafe fn reset_handler() {
 
     // HAIL initialization
     // Only 0x32 will work because of HMAC
-	signbus.signpost_initialization_module_init(0x32);
+    signbus.signpost_initialization_module_init(0x32);
 
     //debug!("Initialization complete. Entering main loop");
     extern "C" {
