@@ -196,7 +196,9 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
 
         self.i2c_recv
             .take()
-            .map(|buffer| { hil::i2c::I2CSlave::write_receive(self.i2c, buffer, support::I2C_MAX_LEN as u8); });
+            .map(|buffer| {
+                hil::i2c::I2CSlave::write_receive(self.i2c, buffer, support::I2C_MAX_LEN as u8);
+            });
 
         hil::i2c::I2CSlave::enable(self.i2c);
         hil::i2c::I2CSlave::listen(self.i2c);
@@ -206,19 +208,19 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
         ReturnCode::SUCCESS
     }
 
-	// Send messages as slave.
-    fn i2c_slave_read_setup(&self, _ : support::Packet, len: usize) -> ReturnCode {
-		self.master_action.set(support::MasterAction::Read(len as u8));
-		unimplemented!("Implement slave write/ master read.");
-/*
-		TODO: Needs to be tested. 
+    // Send messages as slave.
+    fn i2c_slave_read_setup(&self, _: support::Packet, len: usize) -> ReturnCode {
+        self.master_action.set(support::MasterAction::Read(len as u8));
+        unimplemented!("Implement slave write/ master read.");
+        /*
+		TODO: Needs to be tested.
 		self.i2c_send.take().map(|buf| {
             // packet -> buffer
             support::serialize_packet(packet, len - support::HEADER_SIZE, buf);
 
 			hil::i2c::I2CSlave::read_send(self.i2c, buf, len as u8);
 		});
-		
+
         ReturnCode::SUCCESS
 */
 
@@ -238,7 +240,7 @@ impl<'a, A: hil::time::Alarm + 'a> PortLayer for SignbusPortLayer<'a, A> {
 
     fn mod_in_read(&self) -> ReturnCode {
         let pin_state = self.mod_in_pin.read();
-        ReturnCode::SuccessWithValue {value: pin_state as usize}
+        ReturnCode::SuccessWithValue { value: pin_state as usize }
     }
 
     fn mod_in_enable_interrupt(&self) -> ReturnCode {
@@ -299,21 +301,21 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwMasterClient for SignbusPortLa
                 });
 
             }
-            
-			support::MasterAction::Read(_) => {
-				unimplemented!("Implement slave write/ master read.");					
-/*
+
+            support::MasterAction::Read(_) => {
+                unimplemented!("Implement slave write/ master read.");
+                /*
 				// TODO: Need to replace i2c_recv on a master read.
 				// TODO: Needs to be tested.
 				self.i2c_recv.take().map(|i2c_recv| {
 					let d = &mut i2c_recv.as_mut()[0..(read_len as usize)];
-						
+					
                     for (i, c) in buffer[0..(read_len as usize)].iter().enumerate() {
                     	d[i] = *c;
                     }
 				});
 */
-			}
+            }
         }
 
 
@@ -336,8 +338,8 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwSlaveClient for SignbusPortLay
         match transmission_type {
             hil::i2c::SlaveTransmissionType::Read => {
                 //TODO: Implement slave write/ master read.
-            	unimplemented!("Implement slave write/ master read.");
-			}
+                unimplemented!("Implement slave write/ master read.");
+            }
 
             // Master write/ slave read.
             hil::i2c::SlaveTransmissionType::Write => {
@@ -352,8 +354,8 @@ impl<'a, A: hil::time::Alarm + 'a> hil::i2c::I2CHwSlaveClient for SignbusPortLay
 
     fn read_expected(&self) {
         // TODO: Implement slave write/ master read.
-		unimplemented!("Implement slave write/ master read.");
-	}
+        unimplemented!("Implement slave write/ master read.");
+    }
 
     // Slave received message, but does not have buffer. Call write_receive
     // again to initiate callback.

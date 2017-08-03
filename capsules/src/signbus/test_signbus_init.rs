@@ -53,12 +53,12 @@ pub enum DelayState {
 }
 
 pub struct SignbusInitialization<'a> {
-	// app_layer used to send/ recv messages
+    // app_layer used to send/ recv messages
     app_layer: &'a app_layer::SignbusAppLayer<'a>,
     // io_layer used to init
-	io_layer: &'a io_layer::SignbusIOLayer<'a>,
+    io_layer: &'a io_layer::SignbusIOLayer<'a>,
     // port_layer used for gpio and timer
-	port_layer: &'a port_layer::PortLayer,
+    port_layer: &'a port_layer::PortLayer,
 
     device_address: Cell<u8>,
     delay_state: Cell<DelayState>,
@@ -92,7 +92,7 @@ impl<'a> SignbusInitialization<'a> {
 
         self.send_buf.take().map(|buf| {
             // Will only work for 0x32 because of concatenated HMAC
-			buf[0] = self.device_address.get();
+            buf[0] = self.device_address.get();
 
             self.app_layer.signbus_app_send(ModuleAddress::Controller as u8,
                                             SignbusFrameType::CommandFrame as u8,
@@ -147,17 +147,16 @@ impl<'a> port_layer::PortLayerClientGPIOTimer for SignbusInitialization<'a> {
 
             DelayState::RequestIsolation => {
                 match self.port_layer.mod_in_read() {
-                    
-					ReturnCode::SuccessWithValue{value} => {
-						if value != 0 {
-							debug!("Spurrious interrupt");
-						} 
-						else {
-							self.signpost_initialization_declare_controller();
-						}	
-					}
-			
-					_ => {}
+
+                    ReturnCode::SuccessWithValue { value } => {
+                        if value != 0 {
+                            debug!("Spurrious interrupt");
+                        } else {
+                            self.signpost_initialization_declare_controller();
+                        }
+                    }
+
+                    _ => {}
                 }
             }
         }
@@ -192,12 +191,12 @@ impl<'a> app_layer::AppLayerClient for SignbusInitialization<'a> {
     }
     // Called when an I2C master write command is complete.
     fn packet_sent(&self, data: &'static mut [u8], error: support::Error) {
-		
-		if error != support::Error::CommandComplete {
-			debug!("Error: Packet sent incomplete");
-		}
 
-		self.send_buf.replace(data);
+        if error != support::Error::CommandComplete {
+            debug!("Error: Packet sent incomplete");
+        }
+
+        self.send_buf.replace(data);
     }
 
 

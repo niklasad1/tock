@@ -107,8 +107,8 @@ impl<'a> SignbusIOLayer<'a> {
                            data: &'static mut [u8],
                            len: usize)
                            -> ReturnCode {
-        
-		self.sequence_number.set(self.sequence_number.get() + 1);
+
+        self.sequence_number.set(self.sequence_number.get() + 1);
 
         // Network Flags
         let flags: support::SignbusNetworkFlags = support::SignbusNetworkFlags {
@@ -201,9 +201,9 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
         if error != support::Error::CommandComplete {
             // Callback protocol_layer
             self.client.get().map(|client| {
-                self.recv_buf.take().map(|recv_buf| {
-                    client.packet_received(recv_buf, length as usize, error);
-                });
+                self.recv_buf
+                    .take()
+                    .map(|recv_buf| { client.packet_received(recv_buf, length as usize, error); });
             });
             // Reset
             self.length_received.set(0);
@@ -332,6 +332,6 @@ impl<'a> signbus::port_layer::PortLayerClientI2C for SignbusIOLayer<'a> {
 
     fn packet_read_from_slave(&self) {
         // TODO: implement slave write/ master read
-		unimplemented!("Implement slave write/ master read.");
+        unimplemented!("Implement slave write/ master read.");
     }
 }
