@@ -347,12 +347,12 @@ pub unsafe fn reset_handler() {
         capsules::dac::Dac<'static>,
         capsules::dac::Dac::new(&mut sam4l::dac::DAC));
 
-    // signbus virtual alarm
+    // Signbus virtual alarm
     let signbus_virtual_alarm = static_init!(
         VirtualMuxAlarm<'static, sam4l::ast::Ast>,
         VirtualMuxAlarm::new(mux_alarm));
 
-    // signbus port_layer
+    // Signbus port_layer
     let port_layer = static_init!(
         capsules::signbus::port_layer::SignbusPortLayer<'static,
 			VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
@@ -400,19 +400,6 @@ pub unsafe fn reset_handler() {
     ));
 
     protocol_layer.set_client(app_layer);
-
-    /*
-       let port_layer_virtual_alarm = static_init!(
-       VirtualMuxAlarm<'static, sam4l::ast::Ast>,
-       VirtualMuxAlarm::new(mux_alarm));
-       let port_layer = static_init!(
-       capsules::port_layer::PortSignpostTock<'static, VirtualMuxAlarm<'static, sam4l::ast::Ast>>,
-       capsules::port_layer::PortSignpostTock::new(port_layer_i2c,
-       port_layer_virtual_alarm,
-       &mut capsules::port_layer::BUFFER));
-       port_layer_i2c.set_client(port_layer);
-       port_layer_virtual_alarm.set_client(port_layer);
-       */
 
     // AES
     let aes = static_init!(
@@ -464,8 +451,9 @@ pub unsafe fn reset_handler() {
     // Uncomment to measure overheads for TakeCell and MapCell:
     // test_take_map_cell::test_take_map_cell();
 
-    // Signbus Initialization
-    let signbus = static_init!(
+    // Uncomment to use signbus initialization test
+/*    
+	let signbus = static_init!(
         capsules::signbus::test_signbus_init::SignbusInitialization<'static>,
         capsules::signbus::test_signbus_init::SignbusInitialization::new(
 				app_layer,
@@ -481,8 +469,8 @@ pub unsafe fn reset_handler() {
     // HAIL initialization
     // Only 0x32 will work because of HMAC
     signbus.signpost_initialization_module_init(0x32);
-
-    //debug!("Initialization complete. Entering main loop");
+*/
+    
     extern "C" {
         /// Beginning of the ROM region containing app images.
         static _sapps: u8;

@@ -95,7 +95,7 @@ impl<'a> SignbusIOLayer<'a> {
         self.this_device_address.set(address);
         self.port_layer.init(address);
 
-        return ReturnCode::SUCCESS;
+        ReturnCode::SUCCESS
     }
 
 

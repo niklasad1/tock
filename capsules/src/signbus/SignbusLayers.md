@@ -1,13 +1,13 @@
 # Signbus Communication Layers
 
-
--\ USERLAND <br />
-&nbsp;&nbsp;  -\ app_layer <br />
-&nbsp;&nbsp;&nbsp;&nbsp;    -\ protocol_layer <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    -\ io_layer <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        -\ port_layer <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        -\ I2C DRIVER <br />
-
+```
+USERLAND
+ ↳ app_layer
+  ↳ protocol_layer
+   ↳ io_layer
+    ↳ port_layer
+     ↳ I2C DRIVER
+```
 
 ## app_layer
 Userland buffers and callbacks.

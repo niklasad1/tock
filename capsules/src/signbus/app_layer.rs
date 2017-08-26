@@ -28,7 +28,7 @@ use signbus::{protocol_layer, support, test_signbus_init};
 pub static mut BUFFER0: [u8; 256] = [0; 256];
 pub static mut BUFFER1: [u8; 256] = [0; 256];
 
-/// SignbusAppLayer to handle userland interaction and adding message type information.
+/// SignbusAppLayer to handle application messages.
 pub struct SignbusAppLayer<'a> {
     protocol_layer: &'a protocol_layer::SignbusProtocolLayer<'a>,
     payload: TakeCell<'static, [u8]>,
@@ -78,7 +78,6 @@ impl<'a> SignbusAppLayer<'a> {
                             message: &'static mut [u8])
                             -> ReturnCode {
 
-        let mut rc = ReturnCode::SUCCESS;
         let len: usize = 1 + 1 + 1 + message_length;
 
         // Concatenate info with message
@@ -93,8 +92,9 @@ impl<'a> SignbusAppLayer<'a> {
             }
         });
 
-        self.payload.take().map(|payload|{
-			rc = self.protocol_layer.signbus_protocol_send(address, payload, len);
+
+		let rc = self.payload.take().map_or(ReturnCode::EBUSY, |payload| {
+    		self.protocol_layer.signbus_protocol_send(address, payload, len)
 		});
 
         return rc;
