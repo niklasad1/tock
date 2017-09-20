@@ -59,7 +59,7 @@ ifneq ($(shell RUSTUP_TOOLCHAIN=$(RUSTUP_TOOLCHAIN) rustc --version), $(RUSTC_VE
   DUMMY := $(shell rustup install $(RUSTUP_TOOLCHAIN))
   ifneq ($(shell RUSTUP_TOOLCHAIN=$(RUSTUP_TOOLCHAIN) rustc --version), $(RUSTC_VERSION_STRING))
     $(warning You do not have the correct version of `rustc` configured, and `rustup` is not installed.)
-    $(warning Expected `rustc` version "$(RUSTC_VERSION_STRING)" but got "$(shell rustc --version)")
+    $(warning Expected `rustc` version "$(RUSTC_VERSION_STRING)" but got "$(shell RUSTUP_TOOLCHAIN=$(RUSTUP_TOOLCHAIN) rustc --version)")
     $(warning You may experience unexpected compilation warnings or errors)
     $(warning To fix, install `rustup` from https://rustup.rs/, then run: `rustup install $(RUSTUP_TOOLCHAIN)`)
   endif
