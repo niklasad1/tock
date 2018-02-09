@@ -12,9 +12,12 @@ pub trait Client<'a> {
 
 /// The number of bytes used for AES block operations.  Keys and IVs must have this length,
 /// and encryption/decryption inputs must be have a multiple of this length.
-pub const AES128_BLOCK_SIZE: usize = 16;
+// pub const AES128_BLOCK_SIZE: usize = 16;
 
 pub trait AES128<'a> {
+    const BLOCK_SIZE: usize = 16;
+    const KEY_SIZE: usize = 16;
+
     /// Enable the AES hardware.
     /// Must be called before any other methods
     fn enable(&self);
@@ -105,9 +108,10 @@ pub trait CCMClient {
     fn crypt_done(&self, buf: &'static mut [u8], res: ReturnCode, tag_is_valid: bool);
 }
 
-pub const CCM_NONCE_LENGTH: usize = 13;
 
 pub trait AES128CCM<'a> {
+    const NONCE_LENGTH: usize = 13;
+    
     /// Set the client instance which will receive `crypt_done()` callbacks
     fn set_client(&'a self, client: &'a CCMClient);
 

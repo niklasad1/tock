@@ -4,7 +4,8 @@ use core::cell::Cell;
 use kernel::common::VolatileCell;
 use kernel::common::take_cell::TakeCell;
 use kernel::hil;
-use kernel::hil::symmetric_encryption::AES128_BLOCK_SIZE;
+use kernel::hil::symmetric_encryption::AES128;
+// use kernel::hil::symmetric_encryption::AES128_BLOCK_SIZE;
 use kernel::returncode::ReturnCode;
 use pm;
 use scif;
@@ -158,7 +159,7 @@ impl<'a> Aes<'a> {
 
     fn try_set_indices(&self, start_index: usize, stop_index: usize) -> bool {
         stop_index.checked_sub(start_index).map_or(false, |sublen| {
-            sublen % AES128_BLOCK_SIZE == 0 && {
+            sublen % AES128::BLOCK_SIZE == 0 && {
                 self.source.map_or_else(
                     || {
                         // The destination buffer is also the input
@@ -207,7 +208,7 @@ impl<'a> Aes<'a> {
                     },
                     |dest| {
                         let index = self.write_index.get();
-                        let more = index + AES128_BLOCK_SIZE <= self.stop_index.get();
+                        let more = index + AES128::BLOCK_SIZE <= self.stop_index.get();
                         if !more {
                             return false;
                         }
@@ -219,10 +220,10 @@ impl<'a> Aes<'a> {
                             v |= (dest[index + (i * 4) + 3] as usize) << 24;
                             regs.idata.set(v as u32);
                         }
-                        self.write_index.set(index + AES128_BLOCK_SIZE);
+                        self.write_index.set(index + AES128::BLOCK_SIZE);
 
                         let more =
-                            self.write_index.get() + AES128_BLOCK_SIZE <= self.stop_index.get();
+                            self.write_index.get() + AES128::BLOCK_SIZE <= self.stop_index.get();
                         more
                     },
                 )
@@ -230,7 +231,7 @@ impl<'a> Aes<'a> {
             |source| {
                 let index = self.write_index.get();
 
-                let more = index + AES128_BLOCK_SIZE <= source.len();
+                let more = index + AES128::BLOCK_SIZE <= source.len();
                 if !more {
                     return false;
                 }
@@ -244,9 +245,9 @@ impl<'a> Aes<'a> {
                     regs.idata.set(v as u32);
                 }
 
-                self.write_index.set(index + AES128_BLOCK_SIZE);
+                self.write_index.set(index + AES128::BLOCK_SIZE);
 
-                let more = self.write_index.get() + AES128_BLOCK_SIZE <= source.len();
+                let more = self.write_index.get() + AES128::BLOCK_SIZE <= source.len();
                 more
             },
         )
@@ -263,7 +264,7 @@ impl<'a> Aes<'a> {
             },
             |dest| {
                 let index = self.read_index.get();
-                let more = index + AES128_BLOCK_SIZE <= self.stop_index.get();
+                let more = index + AES128::BLOCK_SIZE <= self.stop_index.get();
                 if !more {
                     return false;
                 }
@@ -277,9 +278,9 @@ impl<'a> Aes<'a> {
                     dest[index + (i * 4) + 3] = (v >> 24) as u8;
                 }
 
-                self.read_index.set(index + AES128_BLOCK_SIZE);
+                self.read_index.set(index + AES128::BLOCK_SIZE);
 
-                let more = self.read_index.get() + AES128_BLOCK_SIZE <= self.stop_index.get();
+                let more = self.read_index.get() + AES128::BLOCK_SIZE <= self.stop_index.get();
                 more
             },
         )
@@ -342,7 +343,7 @@ impl<'a> hil::symmetric_encryption::AES128<'a> for Aes<'a> {
     }
 
     fn set_key(&self, key: &[u8]) -> ReturnCode {
-        if key.len() != AES128_BLOCK_SIZE {
+        if key.len() != AES128::BLOCK_SIZE {
             return ReturnCode::EINVAL;
         }
 
@@ -366,7 +367,7 @@ impl<'a> hil::symmetric_encryption::AES128<'a> for Aes<'a> {
     }
 
     fn set_iv(&self, iv: &[u8]) -> ReturnCode {
-        if iv.len() != AES128_BLOCK_SIZE {
+        if iv.len() != AES128::BLOCK_SIZE {
             return ReturnCode::EINVAL;
         }
 
