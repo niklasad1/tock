@@ -72,6 +72,19 @@ extern crate kernel;
 extern crate nrf52;
 extern crate nrf5x;
 
+// Serde example
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+
+#[derive(Serialize, Deserialize)]
+struct Foo {
+    a: u32,
+    b: u32,
+}
+
+use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess};
+
 use capsules::virtual_alarm::VirtualMuxAlarm;
 use nrf5x::rtc::Rtc;
 
@@ -371,5 +384,8 @@ pub unsafe fn reset_handler() {
         FAULT_RESPONSE,
     );
 
+    let foo = Foo { a: 0, b: 1}; 
+
+    
     kernel::main(&platform, &mut chip, &mut PROCESSES, &platform.ipc);
 }

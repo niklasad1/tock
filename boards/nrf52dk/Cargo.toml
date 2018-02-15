@@ -22,3 +22,5 @@ capsules = { path = "../../capsules" }
 kernel = { path = "../../kernel" }
 nrf52 = { path = "../../chips/nrf52" }
 nrf5x = { path = "../../chips/nrf5x" }
+serde = { version = "1.0.27", default-features = false }
+serde_derive = { version = "1.0.27", default-features = false }

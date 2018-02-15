@@ -51,6 +51,12 @@ const NRF52_RADIO_PCNF0_PLEN_8BITS: u32 = 0;
 static mut PAYLOAD: [u8; nrf5x::constants::RADIO_PAYLOAD_LENGTH] =
     [0x00; nrf5x::constants::RADIO_PAYLOAD_LENGTH];
 
+#[derive(Serialize, Deserialize)]
+struct Foo {
+    a: u32,
+    b: u32,
+}
+    
 pub struct Radio {
     regs: *const peripheral_registers::RADIO,
     tx_power: Cell<TxPower>,

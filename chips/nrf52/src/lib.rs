@@ -11,6 +11,11 @@ extern crate nrf5x;
 #[macro_use]
 extern crate bitfield;
 
+#[macro_use]
+extern crate serde_derive;
+
+extern crate serde;
+
 mod peripheral_registers;
 
 pub mod chip;
