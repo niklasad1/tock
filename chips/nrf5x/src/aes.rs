@@ -35,6 +35,7 @@ use kernel;
 use kernel::ReturnCode;
 use kernel::common::take_cell::TakeCell;
 use kernel::hil::symmetric_encryption;
+use kernel::hil::symmetric_encryption::AES128;
 use peripheral_registers;
 
 // DMA buffer that the aes chip will mutate during encryption
@@ -119,7 +120,7 @@ impl<'a> AesECB<'a> {
         self.enable_interrupts();
     }
 
-    pub fn handle_interrupt(&self) {
+    pub fn handle_interrupt<A: AES128<'a>>(&self) {
         let regs = unsafe { &*self.regs };
 
         // disable interrupts
@@ -131,8 +132,8 @@ impl<'a> AesECB<'a> {
 
             // get number of bytes to be used in the keystream/block
             let take = match end_idx.checked_sub(current_idx) {
-                Some(v) if v > symmetric_encryption::AES128_BLOCK_SIZE => {
-                    symmetric_encryption::AES128_BLOCK_SIZE
+                Some(v) if v > A::BLOCK_SIZE => {
+                    A::BLOCK_SIZE
                 }
                 Some(v) => v,
                 None => 0,
@@ -209,7 +210,7 @@ impl<'a> kernel::hil::symmetric_encryption::AES128<'a> for AesECB<'a> {
     }
 
     fn set_key(&self, key: &[u8]) -> ReturnCode {
-        if key.len() != symmetric_encryption::AES128_KEY_SIZE {
+        if key.len() != Self::KEY_SIZE {
             ReturnCode::EINVAL
         } else {
             for (i, c) in key.iter().enumerate() {
@@ -222,7 +223,7 @@ impl<'a> kernel::hil::symmetric_encryption::AES128<'a> for AesECB<'a> {
     }
 
     fn set_iv(&self, iv: &[u8]) -> ReturnCode {
-        if iv.len() != symmetric_encryption::AES128_BLOCK_SIZE {
+        if iv.len() != Self::BLOCK_SIZE {
             ReturnCode::EINVAL
         } else {
             for (i, c) in iv.iter().enumerate() {

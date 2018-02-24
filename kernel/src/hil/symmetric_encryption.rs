@@ -16,6 +16,13 @@ pub const AES128_BLOCK_SIZE: usize = 16;
 pub const AES128_KEY_SIZE: usize = 16;
 
 pub trait AES128<'a> {
+    /// The number of bytes used for AES block operations.
+    /// Blocks and IVs must have this length
+    /// and encryption/decryption inputs must be have a multiple of this length.
+    const BLOCK_SIZE: usize = 16;
+    /// The number of bytes used for the AES128 key 
+    const KEY_SIZE: usize = 16;
+
     /// Enable the AES hardware.
     /// Must be called before any other methods
     fn enable(&self);

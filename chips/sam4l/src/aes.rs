@@ -4,7 +4,7 @@ use core::cell::Cell;
 use kernel::common::VolatileCell;
 use kernel::common::take_cell::TakeCell;
 use kernel::hil;
-use kernel::hil::symmetric_encryption::{AES128_BLOCK_SIZE, AES128_KEY_SIZE};
+use kernel::hil::symmetric_encryption::AES128;
 use kernel::returncode::ReturnCode;
 use pm;
 use scif;
@@ -156,9 +156,9 @@ impl<'a> Aes<'a> {
         status & (1 << 0) != 0
     }
 
-    fn try_set_indices(&self, start_index: usize, stop_index: usize) -> bool {
+    fn try_set_indices<A: AES128<'a>>(&self, start_index: usize, stop_index: usize) -> bool {
         stop_index.checked_sub(start_index).map_or(false, |sublen| {
-            sublen % AES128_BLOCK_SIZE == 0 && {
+            sublen % A::BLOCK_SIZE == 0 && {
                 self.source.map_or_else(
                     || {
                         // The destination buffer is also the input
@@ -196,7 +196,7 @@ impl<'a> Aes<'a> {
     // Copy a block from the request buffer to the AESA input register,
     // if there is a block left in the buffer.  Either way, this function
     // returns true if more blocks remain to send.
-    fn write_block(&self) -> bool {
+    fn write_block<A: AES128<'a>>(&self) -> bool {
         self.source.map_or_else(
             || {
                 // The source and destination are the same buffer
@@ -207,7 +207,7 @@ impl<'a> Aes<'a> {
                     },
                     |dest| {
                         let index = self.write_index.get();
-                        let more = index + AES128_BLOCK_SIZE <= self.stop_index.get();
+                        let more = index + A::BLOCK_SIZE <= self.stop_index.get();
                         if !more {
                             return false;
                         }
@@ -219,10 +219,10 @@ impl<'a> Aes<'a> {
                             v |= (dest[index + (i * 4) + 3] as usize) << 24;
                             regs.idata.set(v as u32);
                         }
-                        self.write_index.set(index + AES128_BLOCK_SIZE);
+                        self.write_index.set(index + A::BLOCK_SIZE);
 
                         let more =
-                            self.write_index.get() + AES128_BLOCK_SIZE <= self.stop_index.get();
+                            self.write_index.get() + A::BLOCK_SIZE <= self.stop_index.get();
                         more
                     },
                 )
@@ -230,7 +230,7 @@ impl<'a> Aes<'a> {
             |source| {
                 let index = self.write_index.get();
 
-                let more = index + AES128_BLOCK_SIZE <= source.len();
+                let more = index + A::BLOCK_SIZE <= source.len();
                 if !more {
                     return false;
                 }
@@ -244,9 +244,9 @@ impl<'a> Aes<'a> {
                     regs.idata.set(v as u32);
                 }
 
-                self.write_index.set(index + AES128_BLOCK_SIZE);
+                self.write_index.set(index + A::BLOCK_SIZE);
 
-                let more = self.write_index.get() + AES128_BLOCK_SIZE <= source.len();
+                let more = self.write_index.get() + A::BLOCK_SIZE <= source.len();
                 more
             },
         )
@@ -255,7 +255,7 @@ impl<'a> Aes<'a> {
     // Copy a block from the AESA output register back into the request buffer
     // if there is any room left.  Return true if we are still waiting for more
     // blocks after this
-    fn read_block(&self) -> bool {
+    fn read_block<A: AES128<'a>>(&self) -> bool {
         self.dest.map_or_else(
             || {
                 debug!("Called read_block() with no data");
@@ -263,7 +263,7 @@ impl<'a> Aes<'a> {
             },
             |dest| {
                 let index = self.read_index.get();
-                let more = index + AES128_BLOCK_SIZE <= self.stop_index.get();
+                let more = index + A::BLOCK_SIZE <= self.stop_index.get();
                 if !more {
                     return false;
                 }
@@ -277,9 +277,9 @@ impl<'a> Aes<'a> {
                     dest[index + (i * 4) + 3] = (v >> 24) as u8;
                 }
 
-                self.read_index.set(index + AES128_BLOCK_SIZE);
+                self.read_index.set(index + A::BLOCK_SIZE);
 
-                let more = self.read_index.get() + AES128_BLOCK_SIZE <= self.stop_index.get();
+                let more = self.read_index.get() + A::BLOCK_SIZE <= self.stop_index.get();
                 more
             },
         )
@@ -298,7 +298,7 @@ impl<'a> Aes<'a> {
         if self.input_buffer_ready() {
             // The AESA says it is ready to receive another block
 
-            if !self.write_block() {
+            if !self.write_block::<Aes>() {
                 // We've now written the entirety of the request buffer,
                 // so unsubscribe from input interrupts
                 self.disable_input_interrupt();
@@ -308,7 +308,7 @@ impl<'a> Aes<'a> {
         if self.output_data_ready() {
             // The AESA says it has a completed block to give us
 
-            if !self.read_block() {
+            if !self.read_block::<Aes>() {
                 // We've read back all the blocks, so unsubscribe from
                 // all interrupts
                 self.disable_interrupts();
@@ -342,7 +342,7 @@ impl<'a> hil::symmetric_encryption::AES128<'a> for Aes<'a> {
     }
 
     fn set_key(&self, key: &[u8]) -> ReturnCode {
-        if key.len() != AES128_KEY_SIZE {
+        if key.len() != Self::KEY_SIZE {
             return ReturnCode::EINVAL;
         }
 
@@ -366,7 +366,7 @@ impl<'a> hil::symmetric_encryption::AES128<'a> for Aes<'a> {
     }
 
     fn set_iv(&self, iv: &[u8]) -> ReturnCode {
-        if iv.len() != AES128_BLOCK_SIZE {
+        if iv.len() != Self::BLOCK_SIZE {
             return ReturnCode::EINVAL;
         }
 
@@ -412,7 +412,7 @@ impl<'a> hil::symmetric_encryption::AES128<'a> for Aes<'a> {
         } else {
             self.source.put(source);
             self.dest.replace(dest);
-            if self.try_set_indices(start_index, stop_index) {
+            if self.try_set_indices::<Aes>(start_index, stop_index) {
                 self.enable_interrupts();
                 None
             } else {

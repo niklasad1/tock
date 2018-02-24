@@ -29,7 +29,7 @@ impl kernel::Chip for NRF51 {
         unsafe {
             while let Some(interrupt) = nvic::next_pending() {
                 match interrupt {
-                    ECB => nrf5x::aes::AESECB.handle_interrupt(),
+                    ECB => nrf5x::aes::AESECB.handle_interrupt::<nrf5x::aes::AesECB>(),
                     GPIOTE => nrf5x::gpio::PORT.handle_interrupt(),
                     RADIO => radio::RADIO.handle_interrupt(),
                     RNG => nrf5x::trng::TRNG.handle_interrupt(),
